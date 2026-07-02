@@ -50,9 +50,7 @@ final class ImageMagickHandlerTest extends CIUnitTestCase
 
         $this->root = WRITEPATH . 'cache/';
 
-        // cleanup everything
-        helper('filesystem');
-        delete_files($this->root, false, true);
+        $this->cleanCache();
 
         // copy our support files
         $this->origin = SUPPORTPATH . 'Images/';
@@ -62,6 +60,19 @@ final class ImageMagickHandlerTest extends CIUnitTestCase
         // get our locally available `convert`
         $config        = new Images();
         $this->handler = Services::image('imagick', $config, false);
+    }
+
+    protected function tearDown(): void
+    {
+        $this->cleanCache();
+
+        parent::tearDown();
+    }
+
+    private function cleanCache(): void
+    {
+        helper('filesystem');
+        delete_files($this->root, false, true);
     }
 
     public function testGetVersion(): void

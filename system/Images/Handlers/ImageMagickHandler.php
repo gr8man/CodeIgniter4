@@ -350,12 +350,16 @@ class ImageMagickHandler extends BaseHandler
         try {
             $result = $this->resource->writeImage($target);
 
+            if (! $result) {
+                throw ImageException::forSaveFailed();
+            }
+
             chmod($target, $this->filePermissions);
 
             $this->resource->clear();
             $this->resource = null;
 
-            return $result;
+            return true;
         } catch (ImagickException) {
             throw ImageException::forSaveFailed();
         }
