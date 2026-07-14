@@ -41,7 +41,7 @@ final class CookieHelperTest extends CIUnitTestCase
 
     protected function setUp(): void
     {
-        service('superglobals')->setCookieArray([]);
+        $_COOKIE = [];
 
         parent::setUp();
 

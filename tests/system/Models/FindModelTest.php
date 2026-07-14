@@ -226,27 +226,27 @@ final class FindModelTest extends LiveModelTestCase
             ->where('id', 1)
             ->update(['deleted_at' => date('Y-m-d H:i:s')]);
 
-        $model = $this->createModel(UserModel::class);
+        $this->createModel(UserModel::class);
 
         if ($aggregate) {
             $ANSISQLDriverNames = ['OCI8'];
 
             if (in_array($this->db->DBDriver, $ANSISQLDriverNames, true)) {
-                $model->select('SUM("id") as "id"');
+                $this->model->select('SUM("id") as "id"');
             } else {
-                $model->select('SUM(id) as id');
+                $this->model->select('SUM(id) as id');
             }
         }
 
         if ($groupBy) {
             if (! $aggregate) {
-                $model->select('id');
+                $this->model->select('id');
             }
 
-            $model->groupBy('id');
+            $this->model->groupBy('id');
         }
 
-        $user = $model->first();
+        $user = $this->model->first();
 
         if (! $aggregate || $groupBy) {
             $count = is_object($user) ? 1 : 0;
@@ -256,7 +256,7 @@ final class FindModelTest extends LiveModelTestCase
             $this->assertSame(9, (int) $user->id);
         }
 
-        $user = $model->withDeleted()->select('id')->first();
+        $user = $this->model->withDeleted()->select('id')->first();
         $this->assertSame(1, (int) $user->id);
     }
 
@@ -267,29 +267,29 @@ final class FindModelTest extends LiveModelTestCase
     #[DataProvider('provideAggregateAndGroupBy')]
     public function testFirstRecoverTempUseSoftDeletes($aggregate, $groupBy): void
     {
-        $model = $this->createModel(UserModel::class);
-        $model->delete(1);
+        $this->createModel(UserModel::class);
+        $this->model->delete(1);
 
         if ($aggregate) {
             $ANSISQLDriverNames = ['OCI8'];
 
             if (in_array($this->db->DBDriver, $ANSISQLDriverNames, true)) {
-                $model->select('SUM("id") as "id"');
+                $this->model->select('SUM("id") as "id"');
             } else {
-                $model->select('SUM(id) as id');
+                $this->model->select('SUM(id) as id');
             }
         } else {
-            $model->select('id');
+            $this->model->select('id');
         }
 
         if ($groupBy) {
-            $model->groupBy('id');
+            $this->model->groupBy('id');
         }
 
-        $user = $model->withDeleted()->first();
+        $user = $this->model->withDeleted()->first();
         $this->assertSame(1, (int) $user->id);
 
-        $user2 = $model->select('id')->first();
+        $user2 = $this->model->select('id')->first();
         $this->assertSame(2, (int) $user2->id);
     }
 

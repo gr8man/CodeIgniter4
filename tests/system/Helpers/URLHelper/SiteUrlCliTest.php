@@ -48,7 +48,7 @@ final class SiteUrlCliTest extends CIUnitTestCase
     {
         parent::tearDown();
 
-        service('superglobals')->setServerArray([]);
+        $_SERVER = [];
     }
 
     private function createRequest(?App $config = null): void

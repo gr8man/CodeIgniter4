@@ -47,6 +47,5 @@ parameters:
         additionalModelNamespaces:
             - Tests\Support\Models
         checkArgumentTypeOfModel: false
-        schemaCacheDirectory: build/schema-cache
     shipmonkBaselinePerIdentifier:
         directory: %currentWorkingDirectory%
