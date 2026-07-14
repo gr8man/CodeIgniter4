@@ -906,7 +906,7 @@ final class EntityTest extends CIUnitTestCase
 
         $entity->status = null;
 
-        $this->assertNotInstanceOf(StatusEnum::class, $entity->status);
+        $this->assertNull($entity->status);
 
         $entity->status = 'pending';
 
@@ -1573,7 +1573,7 @@ final class EntityTest extends CIUnitTestCase
 
         $getDataCaster = $this->getPrivateMethodInvoker($entity, 'dataCaster');
 
-        $this->assertNotInstanceOf(DataCaster::class, $getDataCaster());
+        $this->assertNull($getDataCaster());
         $this->assertNull($this->getPrivateProperty($entity, 'dataCaster'));
         $this->assertSame('12345', $entity->first);
 
