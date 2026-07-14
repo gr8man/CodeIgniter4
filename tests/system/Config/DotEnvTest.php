@@ -93,8 +93,7 @@ final class DotEnvTest extends CIUnitTestCase
     public function testLoadsHex2Bin(): void
     {
         putenv('encryption.key');
-        unset($_ENV['encryption.key']);
-        service('superglobals')->unsetServer('encryption.key');
+        unset($_ENV['encryption.key'], $_SERVER['encryption.key']);
 
         $dotenv = new DotEnv($this->fixturesFolder, 'encryption.env');
         $dotenv->load();
@@ -109,8 +108,7 @@ final class DotEnvTest extends CIUnitTestCase
     public function testLoadsBase64(): void
     {
         putenv('encryption.key');
-        unset($_ENV['encryption.key']);
-        service('superglobals')->unsetServer('encryption.key');
+        unset($_ENV['encryption.key'], $_SERVER['encryption.key']);
 
         $dotenv = new DotEnv($this->fixturesFolder, 'base64encryption.env');
         $dotenv->load();
@@ -169,10 +167,10 @@ final class DotEnvTest extends CIUnitTestCase
         $dotenv = new DotEnv($this->fixturesFolder, '.env');
         $dotenv->load();
 
-        $this->assertSame('bar', $_SERVER['FOO']); // @phpstan-ignore codeigniter.superglobalsOffsetAccess (checks the live superglobal, not the snapshot service)
-        $this->assertSame('baz', $_SERVER['BAR']); // @phpstan-ignore codeigniter.superglobalsOffsetAccess (checks the live superglobal, not the snapshot service)
-        $this->assertSame('with spaces', $_SERVER['SPACED']); // @phpstan-ignore codeigniter.superglobalsOffsetAccess (checks the live superglobal, not the snapshot service)
-        $this->assertSame('', $_SERVER['NULL']); // @phpstan-ignore codeigniter.superglobalsOffsetAccess (checks the live superglobal, not the snapshot service)
+        $this->assertSame('bar', $_SERVER['FOO']);
+        $this->assertSame('baz', $_SERVER['BAR']);
+        $this->assertSame('with spaces', $_SERVER['SPACED']);
+        $this->assertSame('', $_SERVER['NULL']);
     }
 
     public function testNamespacedVariables(): void
@@ -180,7 +178,7 @@ final class DotEnvTest extends CIUnitTestCase
         $dotenv = new DotEnv($this->fixturesFolder, '.env');
         $dotenv->load();
 
-        $this->assertSame('complex', $_SERVER['SimpleConfig_simple_name']); // @phpstan-ignore codeigniter.superglobalsOffsetAccess (checks the live superglobal, not the snapshot service)
+        $this->assertSame('complex', $_SERVER['SimpleConfig_simple_name']);
     }
 
     public function testLoadsGetServerVar(): void
