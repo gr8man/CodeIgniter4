@@ -577,6 +577,8 @@ class BaseBuilder
      * Generates the FROM portion of the query
      *
      * @param array|string $from
+     *
+     * @return $this
      */
     public function from($from, bool $overwrite = false): self
     {
@@ -606,6 +608,8 @@ class BaseBuilder
     /**
      * @param BaseBuilder $from  Expected subquery
      * @param string      $alias Subquery alias
+     *
+     * @return $this
      */
     public function fromSubquery(BaseBuilder $from, string $alias): self
     {
@@ -2682,7 +2686,7 @@ class BaseBuilder
             $sql .= 'WHERE ' . implode(
                 ' AND ',
                 array_map(
-                    static fn ($key, $value): RawSql|string => (
+                    static fn ($key, $value) => (
                         ($value instanceof RawSql && is_string($key))
                         ?
                         $table . '.' . $key . ' = ' . $value
@@ -2813,7 +2817,7 @@ class BaseBuilder
     /**
      * Compiles a delete string and runs the query
      *
-     * @param array<array-key, mixed>|RawSql|string $where
+     * @param array|RawSql|string $where
      *
      * @return bool|string Returns a SQL string if in test mode.
      *
@@ -2932,7 +2936,7 @@ class BaseBuilder
             $sql .= 'ON ' . implode(
                 ' AND ',
                 array_map(
-                    static fn ($key, $value): RawSql|string => (
+                    static fn ($key, $value) => (
                         $value instanceof RawSql ?
                         $value :
                         (
@@ -2947,7 +2951,11 @@ class BaseBuilder
             );
 
             // convert binds in where
-            $this->convertWhereBindsForBatch();
+            foreach ($this->QBWhere as $key => $where) {
+                foreach ($this->binds as $field => $bind) {
+                    $this->QBWhere[$key]['condition'] = str_replace(':' . $field . ':', $bind[0], $where['condition']);
+                }
+            }
 
             $sql .= ' ' . $this->compileWhereHaving('QBWhere');
 
@@ -2971,35 +2979,6 @@ class BaseBuilder
         }
 
         return str_replace('{:_table_:}', $data, $sql);
-    }
-
-    /**
-     * Escapes and substitutes the WHERE binds into the QBWhere conditions
-     * for batch delete queries.
-     *
-     * The bound values respect their escape flag and are escaped the same way
-     * as a regular query (see Query::matchNamedBinds()), instead of being
-     * injected into the SQL as raw, unescaped values.
-     *
-     * @used-by _deleteBatch()
-     */
-    protected function convertWhereBindsForBatch(): void
-    {
-        $replacers = [];
-
-        foreach ($this->binds as $field => $bind) {
-            $escapedValue = $bind[1] ? $this->db->escape($bind[0]) : $bind[0];
-
-            if (is_array($bind[0])) {
-                $escapedValue = '(' . implode(',', $escapedValue) . ')';
-            }
-
-            $replacers[':' . $field . ':'] = (string) $escapedValue;
-        }
-
-        foreach ($this->QBWhere as $key => $where) {
-            $this->QBWhere[$key]['condition'] = strtr($where['condition'], $replacers);
-        }
     }
 
     /**
@@ -3096,7 +3075,7 @@ class BaseBuilder
      * Generates a query string based on which functions were used.
      * Should not be called directly.
      *
-     * @param false|string $selectOverride
+     * @param mixed $selectOverride
      */
     protected function compileSelect($selectOverride = false): string
     {

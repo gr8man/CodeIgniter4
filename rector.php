@@ -12,7 +12,6 @@ declare(strict_types=1);
  */
 
 use Rector\Caching\ValueObject\Storage\FileCacheStorage;
-use Rector\CodeQuality\Rector\BooleanNot\NegatedAndsToPositiveOrsRector;
 use Rector\CodeQuality\Rector\Empty_\SimplifyEmptyCheckOnEmptyArrayRector;
 use Rector\CodeQuality\Rector\FuncCall\CompactToVariablesRector;
 use Rector\CodeQuality\Rector\FunctionLike\SimplifyUselessVariableRector;
@@ -37,6 +36,7 @@ use Rector\Php81\Rector\FuncCall\NullToStrictStringFuncCallArgRector;
 use Rector\PHPUnit\CodeQuality\Rector\Class_\YieldDataProviderRector;
 use Rector\PHPUnit\CodeQuality\Rector\FuncCall\AssertFuncCallToPHPUnitAssertRector;
 use Rector\PHPUnit\CodeQuality\Rector\StmtsAwareInterface\DeclareStrictTypesTestsRector;
+use Rector\PostRector\Rector\UnusedImportRemovingPostRector;
 use Rector\Privatization\Rector\Class_\FinalizeTestCaseClassRector;
 use Rector\Privatization\Rector\Property\PrivatizeFinalClassPropertyRector;
 use Rector\Renaming\Rector\ConstFetch\RenameConstantRector;
@@ -175,8 +175,10 @@ return RectorConfig::configure()
             __DIR__ . '/tests/system/Models',
         ],
 
-        // to be applied in separate PRs to ease review
-        NegatedAndsToPositiveOrsRector::class,
+        UnusedImportRemovingPostRector::class => [
+            // buggy on auto import removed
+            __DIR__ . '/system/HTTP/Response.php',
+        ],
     ])
     // auto import fully qualified class names
     ->withImportNames()
