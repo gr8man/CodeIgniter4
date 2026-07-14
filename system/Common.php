@@ -119,7 +119,7 @@ if (! function_exists('command')) {
      *
      *  > command('migrate:create SomeMigration');
      *
-     * @return false|string
+     * @return string
      */
     function command(string $command)
     {
@@ -154,7 +154,7 @@ if (! function_exists('command')) {
             $cursor += strlen($match[0]);
         }
 
-        /** @var array<array-key, string|null> */
+        /** @var array<int|string, string|null> */
         $params      = [];
         $command     = array_shift($args);
         $optionValue = false;
@@ -185,21 +185,13 @@ if (! function_exists('command')) {
             $params[$arg] = $value;
         }
 
-        $bufferLevel = ob_get_level();
-
         try {
             ob_start();
             service('commands')->run($command, $params);
 
-            if (ob_get_level() <= $bufferLevel) {
-                return false;
-            }
-
             return ob_get_contents();
         } finally {
-            while (ob_get_level() > $bufferLevel) {
-                ob_end_clean();
-            }
+            ob_end_clean();
         }
     }
 }
@@ -450,13 +442,13 @@ if (! function_exists('esc')) {
      * If $data is an array, then it loops over it, escaping each
      * 'value' of the key/value pairs.
      *
-     * @param array<array-key, array<array-key, mixed>|string>|string $data
-     * @param 'attr'|'css'|'html'|'js'|'raw'|'url'                    $context
-     * @param string|null                                             $encoding Current encoding for escaping.
-     *                                                                          If not UTF-8, we convert strings from this encoding
-     *                                                                          pre-escaping and back to this encoding post-escaping.
+     * @param array<int|string, array<int|string, mixed>|string>|string $data
+     * @param 'attr'|'css'|'html'|'js'|'raw'|'url'                      $context
+     * @param string|null                                               $encoding Current encoding for escaping.
+     *                                                                            If not UTF-8, we convert strings from this encoding
+     *                                                                            pre-escaping and back to this encoding post-escaping.
      *
-     * @return ($data is string ? string : array<array-key, array<array-key, mixed>|string>)
+     * @return ($data is string ? string : array<int|string, array<int|string, mixed>|string>)
      *
      * @throws InvalidArgumentException
      */

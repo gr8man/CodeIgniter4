@@ -150,7 +150,7 @@ class Builder extends BaseBuilder
     /**
      * Compiles a delete string and runs the query
      *
-     * @param array<array-key, mixed>|RawSql|string $where
+     * @param array<int|string, mixed>|RawSql|string $where
      *
      * @return bool|string
      *
@@ -248,7 +248,7 @@ class Builder extends BaseBuilder
             $sql .= 'ON (' . implode(
                 ' AND ',
                 array_map(
-                    static fn ($key, $value): RawSql|string => (
+                    static fn ($key, $value) => (
                         ($value instanceof RawSql && is_string($key))
                         ?
                         $table . '.' . $key . ' = ' . $value
@@ -353,7 +353,7 @@ class Builder extends BaseBuilder
             $sql .= implode(
                 ' AND ',
                 array_map(
-                    static fn ($key, $value): RawSql|string => (
+                    static fn ($key, $value) => (
                         ($value instanceof RawSql && is_string($key))
                         ?
                         $table . '.' . $key . ' = ' . $value
@@ -442,7 +442,7 @@ class Builder extends BaseBuilder
             $sql .= 'WHERE ' . implode(
                 ' AND ',
                 array_map(
-                    static fn ($key, $value): RawSql|string => (
+                    static fn ($key, $value) => (
                         $value instanceof RawSql ?
                         $value :
                         (

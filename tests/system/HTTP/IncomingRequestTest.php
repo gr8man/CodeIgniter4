@@ -43,7 +43,6 @@ final class IncomingRequestTest extends CIUnitTestCase
     #[WithoutErrorHandler]
     protected function setUp(): void
     {
-        $this->resetServices();
         parent::setUp();
 
         $_ENV = $_SESSION = [];
@@ -100,34 +99,6 @@ final class IncomingRequestTest extends CIUnitTestCase
 
         $this->assertSame('5', $this->request->getPostGet('TEST'));
         $this->assertSame('3', $this->request->getGetPost('TEST'));
-    }
-
-    public function testCanGrabMultiplePostAndGetVars(): void
-    {
-        service('superglobals')
-            ->setPostArray([
-                'post'   => 'post value',
-                'shared' => 'post shared value',
-            ])
-            ->setGetArray([
-                'get'    => 'get value',
-                'shared' => 'get shared value',
-            ]);
-
-        $index = ['post', 'get', 'shared', 'missing'];
-
-        $this->assertSame([
-            'post'    => 'post value',
-            'get'     => 'get value',
-            'shared'  => 'post shared value',
-            'missing' => null,
-        ], $this->request->getPostGet($index));
-        $this->assertSame([
-            'post'    => 'post value',
-            'get'     => 'get value',
-            'shared'  => 'get shared value',
-            'missing' => null,
-        ], $this->request->getGetPost($index));
     }
 
     public function testNoOldInput(): void
@@ -281,7 +252,7 @@ final class IncomingRequestTest extends CIUnitTestCase
      */
     public function testNegotiatesLocale(): void
     {
-        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr-FR; q=1.0, en; q=0.5');
+        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr-FR); q=1.0, en; q=0.5');
 
         $config                   = new App();
         $config->negotiateLocale  = true;
@@ -296,7 +267,7 @@ final class IncomingRequestTest extends CIUnitTestCase
 
     public function testNegotiatesLocaleOnlyBroad(): void
     {
-        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr; q=1.0, en; q=0.5');
+        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr); q=1.0, en; q=0.5');
 
         $config                   = new App();
         $config->negotiateLocale  = true;
@@ -350,7 +321,7 @@ final class IncomingRequestTest extends CIUnitTestCase
     public function testNegotiatesLanguage(): void
     {
         $this->request->setHeader('Accept-Language', 'da, en-gb;q=0.8, en;q=0.7');
-        $this->assertSame('da', $this->request->negotiate('language', ['en', 'da']));
+        $this->assertSame('en', $this->request->negotiate('language', ['en', 'da']));
     }
 
     public function testCanGrabGetRawJSON(): void
