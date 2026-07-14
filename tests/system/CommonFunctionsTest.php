@@ -65,8 +65,7 @@ final class CommonFunctionsTest extends CIUnitTestCase
 
     protected function setUp(): void
     {
-        unset($_ENV['foo']);
-        service('superglobals')->unsetServer('foo');
+        unset($_ENV['foo'], $_SERVER['foo']);
         $this->resetServices();
 
         parent::setUp();

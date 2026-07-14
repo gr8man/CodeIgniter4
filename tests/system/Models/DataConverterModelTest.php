@@ -20,7 +20,6 @@ use Tests\Support\Entity\User;
 use Tests\Support\Models\UserCastsTimestampModel;
 
 /**
- * @property-read UserCastsTimestampModel $model
  * @internal
  */
 #[Group('DatabaseLive')]
@@ -336,7 +335,8 @@ final class DataConverterModelTest extends LiveModelTestCase
 
     public function testUpdateEntity(): void
     {
-        $id   = $this->prepareOneRecord();
+        $id = $this->prepareOneRecord();
+        /** @var User $user */
         $user = $this->model->asObject(User::class)->find($id);
 
         $email       = $user->email;
@@ -403,7 +403,8 @@ final class DataConverterModelTest extends LiveModelTestCase
 
     public function testSaveEntity(): void
     {
-        $id   = $this->prepareOneRecord();
+        $id = $this->prepareOneRecord();
+        /** @var User $user */
         $user = $this->model->asObject(User::class)->find($id);
 
         $email       = $user->email;
