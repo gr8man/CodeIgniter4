@@ -49,7 +49,7 @@ use stdClass;
  *      - process various callbacks
  *      - allow intermingling calls to the db connection
  *
- * @phpstan-type row_array               array<array-key, mixed>
+ * @phpstan-type row_array               array<int|string, float|int|null|object|string|bool>
  * @phpstan-type event_data_beforeinsert array{data: row_array}
  * @phpstan-type event_data_afterinsert  array{id: int|string, data: row_array, result: bool}
  * @phpstan-type event_data_beforefind   array{id?: int|string, method: string, singleton: bool, limit?: int, offset?: int}
@@ -1855,7 +1855,7 @@ abstract class BaseModel
      *
      * @param object|row_array|null $row
      *
-     * @return array<array-key, mixed>
+     * @return array<int|string, mixed>
      *
      * @throws DataException
      * @throws InvalidArgumentException
@@ -1947,7 +1947,7 @@ abstract class BaseModel
     /**
      * Provides direct access to method in the database connection.
      *
-     * @param array<array-key, mixed> $params
+     * @param array<int|string, mixed> $params
      *
      * @return mixed
      */

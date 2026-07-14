@@ -99,8 +99,7 @@ final class MiscellaneousModelTest extends LiveModelTestCase
 
     public function testCanCreateAndSaveEntityClasses(): void
     {
-        $model  = $this->createModel(EntityModel::class);
-        $entity = $model->where('name', 'Developer')->first();
+        $entity = $this->createModel(EntityModel::class)->where('name', 'Developer')->first();
 
         $this->assertInstanceOf(SimpleEntity::class, $entity);
         $this->assertSame('Developer', $entity->name);
@@ -111,9 +110,9 @@ final class MiscellaneousModelTest extends LiveModelTestCase
         $entity->name       = 'Senior Developer';
         $entity->created_at = $time;
 
-        $this->assertTrue($model->save($entity));
+        $this->assertTrue($this->model->save($entity));
 
-        $result = $model->where('name', 'Senior Developer')->first();
+        $result = $this->model->where('name', 'Senior Developer')->first();
         $this->assertSame(
             Time::createFromTimestamp($time)->toDateTimeString(),
             $result->created_at->toDateTimeString(),

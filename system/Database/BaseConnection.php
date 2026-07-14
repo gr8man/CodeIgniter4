@@ -781,7 +781,7 @@ abstract class BaseConnection implements ConnectionInterface
      * Should automatically handle different connections for read/write
      * queries if needed.
      *
-     * @param array<array-key, mixed>|string|null $binds
+     * @param array|string|null $binds
      *
      * @return BaseResult<TConnection, TResult>|bool|Query
      *
@@ -1280,8 +1280,8 @@ abstract class BaseConnection implements ConnectionInterface
         //
         // Added exception for single quotes as well, we don't want to alter
         // literal strings.
-        if (strcspn($item, "()'") !== strlen($item)) {
-            /** @psalm-suppress NoValue I don't know why ERROR. */
+        /** @psalm-suppress NoValue */
+        if (strcspn($item, "()'") !== strlen($item) && $this->isIdentifierEscapeExempt($item)) {
             return $item;
         }
 
@@ -1305,6 +1305,11 @@ abstract class BaseConnection implements ConnectionInterface
             $item  = substr($item, 0, $offset);
         } else {
             $alias = '';
+        }
+
+        /** @psalm-suppress NoValue */
+        if ($alias !== '' && strcspn($item, "()'") !== strlen($item) && $this->isIdentifierEscapeExempt($item)) {
+            return $item . $alias;
         }
 
         // Break the string apart if it contains periods, then insert the table prefix
@@ -1434,6 +1439,32 @@ abstract class BaseConnection implements ConnectionInterface
     }
 
     /**
+     * Checks if an identifier with parentheses or quotes is a safe function call or a string literal.
+     */
+    private function isIdentifierEscapeExempt(string $item): bool
+    {
+        $item = trim($item);
+
+        if ($item === '') {
+            return false;
+        }
+
+        // String literals starting and ending with single quotes
+        if ($item[0] === "'" && preg_match('/^\'(?:[^\']|\'\')*\'$/s', $item)) {
+            return true;
+        }
+
+        // String literals (for PostgreSQL it can be double quotes)
+        if ($this->escapeChar !== '"' && $item[0] === '"' && preg_match('/^"(?:[^"]|"")*"$/s', $item)) {
+            return true;
+        }
+
+        // SQL functions or subqueries (e.g. MAX(id), (SELECT ...)) with an optional alias
+        // Regex matching balanced parentheses (from start to end or with a safe alias)
+        return str_contains($item, '(') && preg_match('/^(?:[a-zA-Z0-9_.]+\s*)?(?P<parens>\((?:[^()]+|(?&parens))*\))(?:\s+AS\s+(?:[a-zA-Z0-9_.]+|"[^"]*"|\'[^\']*\'|`[^`]*`))?$/is', $item);
+    }
+
+    /**
      * Returns escaped table name with alias.
      */
     private function escapeTableName(TableName $tableName): string
@@ -1467,11 +1498,8 @@ abstract class BaseConnection implements ConnectionInterface
             return $item;
         }
 
-        // Avoid breaking functions and literal values inside queries
-        if (ctype_digit($item)
-            || $item[0] === "'"
-            || ($this->escapeChar !== '"' && $item[0] === '"')
-            || str_contains($item, '(')) {
+        /** @psalm-suppress NoValue */
+        if (ctype_digit($item) || $this->isIdentifierEscapeExempt($item)) {
             return $item;
         }
 
@@ -1533,7 +1561,7 @@ abstract class BaseConnection implements ConnectionInterface
      * Escapes data based on type.
      * Sets boolean and null types
      *
-     * @param mixed $str
+     * @param array|bool|float|int|object|string|null $str
      *
      * @return ($str is array ? array : float|int|string)
      */
@@ -2059,7 +2087,7 @@ abstract class BaseConnection implements ConnectionInterface
     /**
      * Accessor for properties if they exist.
      *
-     * @return mixed
+     * @return array|bool|float|int|object|resource|string|null
      */
     public function __get(string $key)
     {

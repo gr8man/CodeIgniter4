@@ -77,6 +77,8 @@ class MigrateStatus extends BaseCommand
 
     /**
      * Displays a list of all migrations and whether they've been run or not.
+     *
+     * @param array<string, mixed> $params
      */
     public function run(array $params)
     {
