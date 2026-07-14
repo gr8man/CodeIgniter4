@@ -13,7 +13,6 @@ declare(strict_types=1);
 
 namespace CodeIgniter\Log;
 
-use CodeIgniter\Entity\Entity;
 use CodeIgniter\Exceptions\FrameworkException;
 use CodeIgniter\Exceptions\RuntimeException;
 use CodeIgniter\I18n\Time;
@@ -119,161 +118,6 @@ final class LoggerTest extends CIUnitTestCase
         $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message bar baz';
 
         $logger->log('debug', 'Test message {foo} {bar}', ['foo' => 'bar', 'bar' => 'baz']);
-
-        $logs = TestHandler::getLogs();
-
-        $this->assertCount(1, $logs);
-        $this->assertSame($expected, $logs[0]);
-    }
-
-    public function testLogInterpolatesArrayContextValue(): void
-    {
-        $config = new LoggerConfig();
-        $logger = new Logger($config);
-
-        Time::setTestNow('2023-11-25 12:00:00');
-
-        $payload  = ['id' => 123, 'status' => 'created'];
-        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message ' . print_r($payload, true);
-
-        $logger->log('debug', 'Test message {payload}', ['payload' => $payload]);
-
-        $logs = TestHandler::getLogs();
-
-        $this->assertCount(1, $logs);
-        $this->assertSame($expected, $logs[0]);
-    }
-
-    public function testLogInterpolatesOnlyExactDottedContextKey(): void
-    {
-        $config = new LoggerConfig();
-        $logger = new Logger($config);
-
-        Time::setTestNow('2023-11-25 12:00:00');
-
-        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message literal';
-
-        $logger->log('debug', 'Test message {foo.bar}', [
-            'foo.bar' => 'literal',
-            'foo'     => ['bar' => 'nested'],
-        ]);
-
-        $logs = TestHandler::getLogs();
-
-        $this->assertCount(1, $logs);
-        $this->assertSame($expected, $logs[0]);
-    }
-
-    public function testLogIgnoresUnusedArrayContextValueDuringInterpolation(): void
-    {
-        $config = new LoggerConfig();
-        $logger = new Logger($config);
-
-        Time::setTestNow('2023-11-25 12:00:00');
-
-        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message value';
-
-        $logger->log('debug', 'Test message {name}', [
-            'name'    => 'value',
-            'payload' => ['id' => 123],
-        ]);
-
-        $logs = TestHandler::getLogs();
-
-        $this->assertCount(1, $logs);
-        $this->assertSame($expected, $logs[0]);
-    }
-
-    public function testLogInterpolatesStringableContextValue(): void
-    {
-        $config = new LoggerConfig();
-        $logger = new Logger($config);
-
-        Time::setTestNow('2023-11-25 12:00:00');
-
-        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message stringable';
-
-        $logger->log('debug', 'Test message {value}', [
-            'value' => new class () implements Stringable {
-                public function __toString(): string
-                {
-                    return 'stringable';
-                }
-            },
-        ]);
-
-        $logs = TestHandler::getLogs();
-
-        $this->assertCount(1, $logs);
-        $this->assertSame($expected, $logs[0]);
-    }
-
-    public function testLogInterpolatesTimeContextValue(): void
-    {
-        $config = new LoggerConfig();
-        $logger = new Logger($config);
-
-        Time::setTestNow('2023-11-25 12:00:00');
-
-        $time     = Time::parse('2024-01-02 03:04:05', 'UTC');
-        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message 2024-01-02 03:04:05';
-
-        $logger->log('debug', 'Test message {time}', ['time' => $time]);
-
-        $logs = TestHandler::getLogs();
-
-        $this->assertCount(1, $logs);
-        $this->assertSame($expected, $logs[0]);
-    }
-
-    public function testLogInterpolatesNonStringableObjectContextValue(): void
-    {
-        $config = new LoggerConfig();
-        $logger = new Logger($config);
-
-        Time::setTestNow('2023-11-25 12:00:00');
-
-        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message [object stdClass]';
-
-        $logger->log('debug', 'Test message {value}', ['value' => new stdClass()]);
-
-        $logs = TestHandler::getLogs();
-
-        $this->assertCount(1, $logs);
-        $this->assertSame($expected, $logs[0]);
-    }
-
-    public function testLogInterpolatesResourceContextValue(): void
-    {
-        $config = new LoggerConfig();
-        $logger = new Logger($config);
-
-        Time::setTestNow('2023-11-25 12:00:00');
-
-        $resource = fopen('php://memory', 'rb');
-        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message [resource (stream)]';
-
-        $logger->log('debug', 'Test message {value}', ['value' => $resource]);
-
-        fclose($resource);
-
-        $logs = TestHandler::getLogs();
-
-        $this->assertCount(1, $logs);
-        $this->assertSame($expected, $logs[0]);
-    }
-
-    public function testLogInterpolatesEntityContextValue(): void
-    {
-        $config = new LoggerConfig();
-        $logger = new Logger($config);
-
-        Time::setTestNow('2023-11-25 12:00:00');
-
-        $entity   = new Entity(['id' => 123, 'name' => 'Ada']);
-        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message ' . print_r($entity->toArray(), true);
-
-        $logger->log('debug', 'Test message {entity}', ['entity' => $entity]);
 
         $logs = TestHandler::getLogs();
 
@@ -595,5 +439,124 @@ final class LoggerTest extends CIUnitTestCase
         ];
 
         $this->assertSame($expected, $logger->determineFile());
+    }
+
+    public function testLogInterpolatesArrayContext(): void
+    {
+        $config = new LoggerConfig();
+        $logger = new Logger($config);
+
+        Time::setTestNow('2023-11-25 12:00:00');
+
+        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message ' . print_r(['foo' => 'bar'], true);
+
+        $logger->log('debug', 'Test message {foo}', ['foo' => ['foo' => 'bar']]);
+
+        $logs = TestHandler::getLogs();
+
+        $this->assertCount(1, $logs);
+        $this->assertSame($expected, $logs[0]);
+    }
+
+    public function testLogInterpolatesObjectContext(): void
+    {
+        $config = new LoggerConfig();
+        $logger = new Logger($config);
+
+        Time::setTestNow('2023-11-25 12:00:00');
+
+        $obj      = new stdClass();
+        $obj->foo = 'bar';
+
+        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message ' . print_r($obj, true);
+
+        $logger->log('debug', 'Test message {foo}', ['foo' => $obj]);
+
+        $logs = TestHandler::getLogs();
+
+        $this->assertCount(1, $logs);
+        $this->assertSame($expected, $logs[0]);
+    }
+
+    public function testLogInterpolatesMultipleEnvironmentVars(): void
+    {
+        $config = new LoggerConfig();
+        $logger = new Logger($config);
+
+        Time::setTestNow('2023-11-25 12:00:00');
+
+        $_ENV['foo'] = 'bar';
+        $_ENV['baz'] = 'qux';
+
+        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Test message bar and qux';
+
+        $logger->log('debug', 'Test message {env:foo} and {env:baz}');
+
+        $logs = TestHandler::getLogs();
+
+        $this->assertCount(1, $logs);
+        $this->assertSame($expected, $logs[0]);
+    }
+
+    public function testLogAcceptsStringableMessage(): void
+    {
+        $config = new LoggerConfig();
+        $logger = new Logger($config);
+
+        Time::setTestNow('2023-11-25 12:00:00');
+
+        $message = new class () implements Stringable {
+            public function __toString(): string
+            {
+                return 'Stringable message {foo}';
+            }
+        };
+
+        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Stringable message bar';
+
+        $logger->log('debug', $message, ['foo' => 'bar']);
+
+        $logs = TestHandler::getLogs();
+
+        $this->assertCount(1, $logs);
+        $this->assertSame($expected, $logs[0]);
+    }
+
+    public function testLogObjectContextLosesProperties(): void
+    {
+        $config = new LoggerConfig();
+        $logger = new Logger($config);
+
+        Time::setTestNow('2023-11-25 12:00:00');
+
+        $user       = new stdClass();
+        $user->name = 'John';
+        $user->role = 'admin';
+
+        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> User: ' . print_r($user, true);
+
+        $logger->log('debug', 'User: {user}', ['user' => $user]);
+
+        $logs = TestHandler::getLogs();
+
+        $this->assertCount(1, $logs);
+        $this->assertSame($expected, $logs[0]);
+    }
+
+    public function testLogBooleanFalseIsLoggedAsEmptyString(): void
+    {
+        $config = new LoggerConfig();
+        $logger = new Logger($config);
+
+        Time::setTestNow('2023-11-25 12:00:00');
+
+        $expected = 'DEBUG - ' . Time::now()->format('Y-m-d') . ' --> Active: false';
+
+        $logger->log('debug', 'Active: {status}', ['status' => false]);
+
+        $logs = TestHandler::getLogs();
+
+        $this->assertCount(1, $logs);
+        $this->assertSame($expected, $logs[0]);
     }
 }

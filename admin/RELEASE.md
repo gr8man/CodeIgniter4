@@ -1,10 +1,11 @@
 # Release Process
 
-> Documentation guide based on the releases of `4.0.5` and `4.1.0` on January 31, 2021 (MGatner)
+> Documentation guide based on the releases of `4.0.5` and `4.1.0` on January 31, 2021.
 >
-> Updated for `4.5.0` on April 7, 2024 (kenjis)
-> Updated for `4.6.0` on January 19, 2025 (paulbalandan)
-> Updated for `4.7.5` on July 8, 2026 (paulbalandan)
+> Updated for `4.5.0` on April 7, 2024.
+> Updated for `4.6.0` on January 19, 2025.
+>
+> -MGatner, kenjis
 
 ## Notation
 
@@ -23,7 +24,11 @@ merging will take time.
 
 * [ ] Merge `develop` into `4.y`:
     ```console
-    php admin/sync-release-branches.php 4.y develop --push
+    git fetch upstream
+    git switch 4.y
+    git merge upstream/4.y
+    git merge upstream/develop
+    git push upstream HEAD
     ```
 
 ## [Minor version only] Merge minor version branch into `develop`
@@ -69,33 +74,23 @@ the following [labels](https://github.com/codeigniter4/CodeIgniter4/labels):
 PRs with breaking changes must have the following additional label:
 - **breaking change** ... PRs that may break existing functionalities
 
-At any time, missing labels can be checked for with
-`php admin/check-pr-labels.php`, which flags PRs merged since the last release
-that appear to lack a changelog label. It requires the authenticated
-[GitHub CLI](https://cli.github.com/).
-
 ### Generate Changelog
 
-The changelog is generated from GitHub's auto-generated release notes with a
-script. It requires the authenticated [GitHub CLI](https://cli.github.com/).
+To auto-generate the changelog, navigate to the
+[Releases](https://github.com/codeigniter4/CodeIgniter4/releases) page,
+click the "Draft a new release" button.
 
-The script also copies the security fixes from the SECURITY section of
-**user_guide_src/source/changelogs/v4.x.x.rst**, so any security advisory PRs
-must be merged and documented there before generating the changelog.
+* Choose a tag: `v4.x.x` (Create new tag: v4.x.x on publish)
+* Target: `develop`
 
-* [ ] Run `php admin/generate-changelog.php 4.x.x --dry-run` and check the output.
-  * The script lists the PRs that have none of the changelog labels. If any of
-    them should be included in the changelog, add a label to the PR and run
-    the script again.
-* [ ] Run `php admin/generate-changelog.php 4.x.x` to prepend the new entry to
-  **CHANGELOG.md**.
+Click the "Generate release notes" button.
 
-If the script cannot be used, the same notes can be generated from the
-[Releases](https://github.com/codeigniter4/CodeIgniter4/releases) page:
-click "Draft a new release", choose the tag `v4.x.x` (create new tag on
-publish) with target `develop`, and click "Generate release notes". Copy the
-resulting contents into **CHANGELOG.md** and adjust the format to match the
-existing content.
+Check the resulting content. If there are items in the *Others* section which
+should be included in the changelog, add a label to the PR and regenerate
+the changelog.
+
+Copy the resulting contents into **CHANGELOG.md** and adjust the format to match
+the existing content.
 
 ## Process
 
@@ -105,15 +100,18 @@ existing content.
 > generating much new content.
 
 * [ ] Merge any security advisory PRs in private forks.
-* [ ] Check that **CHANGELOG.md** contains the entry for the new version, generated above.
+* [ ] Add the current version to **CHANGELOG.md** with the contents generated above.
 * [ ] Update **user_guide_src/source/changelogs/v4.x.x.rst**
   * Remove the section titles that have no items
 * [ ] Update **user_guide_src/source/installation/upgrade_4xx.rst**
-  * [ ] Run `php admin/update-upgrade-guide.php 4.x.x` to fill in the "Config" and
-    "All Changes" sections with the project space files changed since the last release.
-    * The "Config" section is not modified if it already has content. The script
-      prints any missing entries to merge manually.
-    * Add notes to the "Config" entries as needed.
+  * [ ] fill in the "All Changes" section using the following command, and add it to **upgrade_4xx.rst**:
+    ```
+    git diff --name-status upstream/master -- . ':!.github/' ':!admin/' ':!changelogs/' ':!contributing/' \
+        ':!system/' ':!tests/' ':!user_guide_src/' ':!utils/' \
+        ':!*.json' ':!*.xml' ':!*.dist' ':!rector.php' ':!structarmed.php' \
+        ':!phpstan*' ':!psalm*' ':!.php-cs-fixer.*' ':!LICENSE' ':!CHANGELOG.md'
+    ```
+    * Note: `tests/` is not used for distribution repos. See `admin/starter/tests/`.
   * [ ] Remove the section titles that have no items
   * [ ] [Minor version only] Update the "from" version in the title, (e.g., `from 4.3.x` → `from 4.3.8`).
 * [ ] Run `php admin/prepare-release.php 4.x.x` and push to origin.
@@ -166,23 +164,37 @@ existing content.
     **Full Changelog**: https://github.com/codeigniter4/CodeIgniter4/compare/v4.x.w...v4.x.x
     ```
     Click the "Generate release notes" button, and get the "New Contributors".
-* [ ] Watch the "[Verify Release](https://github.com/codeigniter4/CodeIgniter4/actions/workflows/verify-release.yml)"
-  workflow and make sure it passes. It does the following:
-  * Wait for the "[Deploy Distributable Repos](https://github.com/codeigniter4/CodeIgniter4/actions/workflows/deploy-distributables.yml)"
-    action to update **framework**, **appstarter**, and **userguide**
-  * Install `appstarter` from Packagist, verify it pulls framework `v4.x.x`,
-    and run its tests
-  * Verify that the user guide deployments succeeded ("Deploy Production" and
-    "pages build and deployment" in the UG repo) and that **CodeIgniter4.x.x.epub**
-    was added
-  * If it fails, fix the cause and re-run it via "Run workflow" with the tag `v4.x.x`.
+* [ ] Watch for the "Deploy Distributable Repos" action to make sure **framework**,
+  **appstarter**, and **userguide** get updated
+* [ ] Run the following commands to install and test `appstarter` and verify the new
+  version:
+    ```console
+    rm -rf release-test
+    composer create-project codeigniter4/appstarter release-test
+    cd release-test
+    composer test && composer info codeigniter4/framework
+    ```
+* [ ] Verify that the user guide actions succeeded:
+  * [ ] "[Deploy Distributable Repos](https://github.com/codeigniter4/CodeIgniter4/actions/workflows/deploy-distributables.yml)", the main repo
+  * [ ] "[Deploy Production](https://github.com/codeigniter4/userguide/actions/workflows/deploy.yml)", UG repo
+  * [ ] "[pages-build-deployment](https://github.com/codeigniter4/userguide/actions/workflows/pages/pages-build-deployment)", UG repo
+  * [ ] Check if "CodeIgniter4.x.x.epub" is added to UG repo. "CodeIgniter.epub" was
+    created when v4.3.8 was released.
 * [ ] Fast-forward `develop` branch to catch the merge commit from `master`
     ```console
-    php admin/sync-release-branches.php develop master --push
+    git fetch upstream
+    git checkout develop
+    git merge upstream/develop
+    git merge upstream/master
+    git push upstream HEAD
     ```
 * [ ] Update the next minor version branch `4.y`:
     ```console
-    php admin/sync-release-branches.php 4.y develop --push
+    git fetch upstream
+    git switch 4.y
+    git merge upstream/4.y
+    git merge upstream/develop
+    git push upstream HEAD
     ```
 * [ ] [Minor version only] Create the new next minor version branch `4.z`:
     ```console

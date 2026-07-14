@@ -24,7 +24,6 @@ use Config\App;
 use Config\Modules;
 use Config\Routing;
 use Config\Services;
-use PHPUnit\Framework\Attributes\BackupGlobals;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\PreserveGlobalState;
 use PHPUnit\Framework\Attributes\RunInSeparateProcess;
@@ -33,7 +32,6 @@ use PHPUnit\Framework\Attributes\WithoutErrorHandler;
 /**
  * @internal
  */
-#[BackupGlobals(true)]
 #[Group('SeparateProcess')]
 final class RedirectResponseTest extends CIUnitTestCase
 {
@@ -48,8 +46,9 @@ final class RedirectResponseTest extends CIUnitTestCase
     #[WithoutErrorHandler]
     protected function setUp(): void
     {
-        $this->resetServices();
         parent::setUp();
+
+        $this->resetServices();
 
         Services::injectMock('superglobals', new Superglobals());
         service('superglobals')->setServer('REQUEST_METHOD', 'GET');
