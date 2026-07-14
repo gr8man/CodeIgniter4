@@ -47,6 +47,6 @@ parameters:
         additionalModelNamespaces:
             - Tests\Support\Models
         checkArgumentTypeOfModel: false
-        schemaCacheDirectory: build/schema-cache
+        schemaCacheDirectory: %currentWorkingDirectory%/build/phpstan
     shipmonkBaselinePerIdentifier:
         directory: %currentWorkingDirectory%
