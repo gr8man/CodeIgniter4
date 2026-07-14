@@ -108,6 +108,8 @@ class RedirectResponse extends Response
      * If the validation has any errors, transmit those back
      * so they can be displayed when the validation is handled
      * within a method different than displaying the form.
+     *
+     * @return $this
      */
     private function withErrors(): self
     {

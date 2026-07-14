@@ -40,7 +40,7 @@ class ValidationTest extends CIUnitTestCase
     protected Validation $validation;
 
     /**
-     * @var array<string, array<array-key, array<string, array<string, string>|string>|string>|string>
+     * @var array<string, array<int|string, array<string, array<string, string>|string>|string>|string>
      */
     protected static array $config = [
         'ruleSets' => [
@@ -1854,48 +1854,43 @@ class ValidationTest extends CIUnitTestCase
         );
     }
 
-    /**
-     * Test that `required_without` checks all fields in dot-notation when there are multiple fields.
-     */
-    public function testRequireWithoutMultipleWithAsterisk(): void
+    public function testRequireWithoutWithMultipleAsterisk(): void
     {
         $data = [
             'a' => [
-                ['b' => 1, 'c' => 2, 'd' => ''],
-                ['b' => 1, 'c' => '', 'd' => ''],
+                ['b' => 1, 'c' => 2, 'd' => 3],
+                ['c' => '', 'd' => 4],
+                ['b' => 5],
             ],
         ];
 
         $this->validation->setRules([
-            'a.*.d' => 'required_without[a.*.b,a.*.c]',
+            'a.*.c' => 'required_without[a.*.b, a.*.d]',
         ])->run($data);
 
         $this->assertSame(
-            'The a.*.d field is required when a.*.b,a.*.c is not present.',
-            $this->validation->getError('a.1.d'),
+            'The a.*.c field is required when a.*.b, a.*.d is not present.',
+            $this->validation->getError('a.1.c'),
         );
+        $this->assertArrayNotHasKey('a.0.c', $this->validation->getErrors(), 'Row 0: both b and d present');
+        $this->assertArrayHasKey('a.2.c', $this->validation->getErrors(), 'Row 2: c missing, d missing → field required');
     }
 
-    /**
-     * Test that `required_without` handles a non-asterisk field checked against an asterisk field
-     * without throwing undefined array key warnings for `$fieldSplitArray[1]`.
-     */
-    public function testRequireWithoutAsteriskOnNonAsteriskField(): void
+    public function testRequireWithoutWithMultipleAsteriskLastMissing(): void
     {
         $data = [
-            'foo' => '',
-            'a'   => [
-                ['b' => ''],
+            'a' => [
+                ['b' => 1, 'c' => ''],
             ],
         ];
 
         $this->validation->setRules([
-            'foo' => 'required_without[a.*.b]',
+            'a.*.c' => 'required_without[a.*.b, a.*.nonexistent]',
         ])->run($data);
 
         $this->assertSame(
-            'The foo field is required when a.*.b is not present.',
-            $this->validation->getError('foo'),
+            'The a.*.c field is required when a.*.b, a.*.nonexistent is not present.',
+            $this->validation->getError('a.0.c'),
         );
     }
 

@@ -721,7 +721,7 @@ class Parser extends View
     /**
      * Makes a new plugin available during the parsing of the template.
      *
-     * @param (callable(array<array-key, string>): string)|(callable(string, array<array-key, string>): string) $callback
+     * @param (callable(array<int|string, string>): string)|(callable(string, array<int|string, string>): string) $callback
      *
      * @return $this
      */
@@ -748,7 +748,7 @@ class Parser extends View
      * Converts an object to an array, respecting any
      * toArray() methods on an object.
      *
-     * @param mixed $value
+     * @param array<string, mixed>|bool|float|int|object|string|null $value
      *
      * @return array<string, mixed>|bool|float|int|string|null
      */

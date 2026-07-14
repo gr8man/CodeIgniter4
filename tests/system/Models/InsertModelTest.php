@@ -119,12 +119,12 @@ final class InsertModelTest extends LiveModelTestCase
             ],
         ];
 
-        $model = $this->createModel(JobModel::class);
+        $this->createModel(JobModel::class);
 
-        $this->setPrivateProperty($model, 'useTimestamps', true);
-        $this->assertSame(2, $model->insertBatch($jobData));
+        $this->setPrivateProperty($this->model, 'useTimestamps', true);
+        $this->assertSame(2, $this->model->insertBatch($jobData));
 
-        $result = $model->where('name', 'Philosopher')->first();
+        $result = $this->model->where('name', 'Philosopher')->first();
         $this->assertCloseEnough(time(), (int) $result->created_at);
     }
 
@@ -143,12 +143,12 @@ final class InsertModelTest extends LiveModelTestCase
             ],
         ];
 
-        $model = $this->createModel(UserModel::class);
+        $this->createModel(UserModel::class);
 
-        $this->setPrivateProperty($model, 'useTimestamps', true);
-        $this->assertSame(2, $model->insertBatch($userData));
+        $this->setPrivateProperty($this->model, 'useTimestamps', true);
+        $this->assertSame(2, $this->model->insertBatch($userData));
 
-        $result = $model->where('name', 'Lou')->first();
+        $result = $this->model->where('name', 'Lou')->first();
         $this->assertCloseEnough(time(), strtotime($result->created_at));
     }
 
@@ -335,13 +335,15 @@ final class InsertModelTest extends LiveModelTestCase
             'name' => 'Scott',
         ];
 
-        $model = $this->createModel(UserModel::class);
-        $this->setPrivateProperty($model, 'useTimestamps', true);
+        $this->createModel(UserModel::class);
 
-        $model->set('country', '1+1', false)->set('email', '2+2')->insert($userData);
-        $this->assertGreaterThan(0, $model->getInsertID());
+        $this->setPrivateProperty($this->model, 'useTimestamps', true);
 
-        $result = $model->where('name', 'Scott')->where('country', '2')->where('email', '2+2')->first();
+        $this->model->set('country', '1+1', false)->set('email', '2+2')->insert($userData);
+
+        $this->assertGreaterThan(0, $this->model->getInsertID());
+        $result = $this->model->where('name', 'Scott')->where('country', '2')->where('email', '2+2')->first();
+
         $this->assertNotNull($result->created_at);
     }
 
@@ -387,7 +389,7 @@ final class InsertModelTest extends LiveModelTestCase
         ];
         $this->createModel(UserCastsTimestampModel::class);
 
-        $numRows = $this->model->insertBatch($userData);
+        $numRows = $this->model->insertBatch($userData); // @phpstan-ignore argument.type
 
         $this->assertSame(2, $numRows);
 

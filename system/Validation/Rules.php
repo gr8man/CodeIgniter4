@@ -316,7 +316,7 @@ class Rules
     }
 
     /**
-     * @param mixed $str
+     * @param array|bool|float|int|object|string|null $str
      */
     public function required($str = null): bool
     {
@@ -414,35 +414,42 @@ class Rules
         // Still here? Then we fail this test if
         // any of the fields are not present in $data
         foreach (explode(',', $otherFields) as $otherField) {
-            if (
-                (! str_contains($otherField, '.'))
-                && (! array_key_exists($otherField, $data)
-                    || empty($data[$otherField]))
-            ) {
-                return false;
+            if (! str_contains($otherField, '.')) {
+                if (! array_key_exists($otherField, $data) || empty($data[$otherField])) {
+                    return false;
+                }
+
+                continue;
             }
 
-            if (str_contains($otherField, '.')) {
-                if ($field === null) {
-                    throw new InvalidArgumentException('You must supply the parameters: field.');
+            if ($field === null) {
+                throw new InvalidArgumentException('You must supply the parameters: field.');
+            }
+
+            $fieldSplitArray = explode('.', $field);
+            $fieldKey        = $fieldSplitArray[1] ?? null;
+
+            if ($fieldKey === null) {
+                throw new InvalidArgumentException('Invalid field format for dot-path required_without.');
+            }
+
+            $fieldData = dot_array_search($otherField, $data);
+
+            if (is_array($fieldData)) {
+                $searched = dot_array_search($otherField, $data);
+
+                if (! is_array($searched) || ! array_key_exists($fieldKey, $searched)) {
+                    return false;
                 }
 
-                $fieldData       = dot_array_search($otherField, $data);
-                $fieldSplitArray = explode('.', $field);
-                $fieldKey        = $fieldSplitArray[1] ?? null;
-
-                if (is_array($fieldData)) {
-                    if (empty($fieldData[$fieldKey])) {
-                        return false;
-                    }
-
-                    continue;
+                if (empty($searched[$fieldKey])) {
+                    return false;
                 }
+            } else {
+                $nowField      = str_replace('*', $fieldKey, $otherField);
+                $nowFieldValue = dot_array_search($nowField, $data);
 
-                $nowField      = str_replace('*', (string) $fieldKey, $otherField);
-                $nowFieldVaule = dot_array_search($nowField, $data);
-
-                if ($nowFieldVaule === null) {
+                if ($nowFieldValue === null) {
                     return false;
                 }
             }
@@ -454,10 +461,10 @@ class Rules
     /**
      * The field exists in $data.
      *
-     * @param mixed       $value The field value.
-     * @param string|null $param The rule's parameter.
-     * @param array       $data  The data to be validated.
-     * @param string|null $field The field name.
+     * @param array|bool|float|int|object|string|null $value The field value.
+     * @param string|null                             $param The rule's parameter.
+     * @param array                                   $data  The data to be validated.
+     * @param string|null                             $field The field name.
      */
     public function field_exists(
         $value = null,
