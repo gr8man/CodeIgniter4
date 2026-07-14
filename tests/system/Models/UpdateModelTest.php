@@ -422,6 +422,7 @@ final class UpdateModelTest extends LiveModelTestCase
         /** @var int|string $id */
         $id = $this->model->insert($object);
 
+        /** @var stdClass $object */
         $object       = $this->model->find($id);
         $object->name = 'John Smith';
 
@@ -456,27 +457,30 @@ final class UpdateModelTest extends LiveModelTestCase
 
     public function testUpdateEntityWithPrimaryKeyCast(): void
     {
-        if (in_array($this->db->DBDriver, ['OCI8', 'Postgre', 'SQLSRV', 'SQLite3'], true)) {
+        if (
+            in_array($this->db->DBDriver, ['OCI8', 'Postgre', 'SQLSRV', 'SQLite3'], true)
+        ) {
             $this->markTestSkipped($this->db->DBDriver . ' does not work with binary data as string data.');
         }
 
         $this->createUuidTable();
 
-        $model = $this->createModel(UUIDPkeyModel::class);
+        $this->createModel(UUIDPkeyModel::class);
 
         $entity        = new UUID();
         $entity->id    = '550e8400-e29b-41d4-a716-446655440000';
         $entity->value = 'test1';
 
-        $id     = $model->insert($entity);
-        $entity = $model->find($id);
+        $id     = $this->model->insert($entity);
+        $entity = $this->model->find($id);
 
         $entity->value = 'id';
+        $result        = $this->model->save($entity);
 
-        $result = $model->save($entity);
         $this->assertTrue($result);
 
-        $entity = $model->find($id);
+        $entity = $this->model->find($id);
+
         $this->assertSame('id', $entity->value);
     }
 
@@ -712,7 +716,7 @@ final class UpdateModelTest extends LiveModelTestCase
             ],
         ];
 
-        $numRows = $this->model->updateBatch($updateData, 'id');
+        $numRows = $this->model->updateBatch($updateData, 'id'); // @phpstan-ignore argument.type
         $this->assertSame(2, $numRows);
 
         $this->seeInDatabase('user', ['email' => json_encode($updateData[0]['email'])]);
