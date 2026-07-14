@@ -110,10 +110,11 @@ class Session implements SessionInterface
         $this->setSaveHandler();
 
         // Sanitize the cookie, because apparently PHP doesn't do that for userspace handlers
-        $cookie = service('superglobals')->cookie($this->config->cookieName);
-
-        if (isset($cookie) && (! is_string($cookie) || preg_match('#\A' . $this->sidRegexp . '\z#', $cookie) !== 1)) {
-            service('superglobals')->unsetCookie($this->config->cookieName);
+        if (
+            isset($_COOKIE[$this->config->cookieName])
+            && (! is_string($_COOKIE[$this->config->cookieName]) || preg_match('#\A' . $this->sidRegexp . '\z#', $_COOKIE[$this->config->cookieName]) !== 1)
+        ) {
+            unset($_COOKIE[$this->config->cookieName]);
         }
 
         $this->startSession();
@@ -131,7 +132,7 @@ class Session implements SessionInterface
         }
         // Another work-around ... PHP doesn't seem to send the session cookie
         // unless it is being currently created or regenerated
-        elseif (isset($cookie) && $cookie === session_id()) {
+        elseif (isset($_COOKIE[$this->config->cookieName]) && $_COOKIE[$this->config->cookieName] === session_id()) {
             $this->setCookie();
         }
 
@@ -302,6 +303,14 @@ class Session implements SessionInterface
         }
 
         foreach ($data as $sessionKey => $sessionValue) {
+            if (is_string($sessionKey) && str_starts_with($sessionKey, '__ci_')) {
+                log_message('warning', 'Session key "{key}" is reserved for framework use and was not set.', [
+                    'key' => $sessionKey,
+                ]);
+
+                continue;
+            }
+
             $_SESSION[$sessionKey] = $sessionValue;
         }
     }
@@ -369,6 +378,10 @@ class Session implements SessionInterface
      */
     public function __set(string $key, $value)
     {
+        if (str_starts_with($key, '__ci_')) {
+            return;
+        }
+
         $_SESSION[$key] = $value;
     }
 
