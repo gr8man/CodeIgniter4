@@ -259,11 +259,7 @@ final class MessageTest extends CIUnitTestCase
 
         $this->assertNull($this->message->header('content-type'));
 
-        if ($originalEnv !== false) {
-            putenv("CONTENT_TYPE={$originalEnv}");
-        } else {
-            putenv('CONTENT_TYPE');
-        }
+        putenv("CONTENT_TYPE={$originalEnv}");
     }
 
     public function testPopulateHeadersWithoutHTTP(): void
