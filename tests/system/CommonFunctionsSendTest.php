@@ -30,8 +30,7 @@ final class CommonFunctionsSendTest extends CIUnitTestCase
     {
         parent::setUp();
 
-        unset($_ENV['foo']);
-        service('superglobals')->unsetServer('foo');
+        unset($_ENV['foo'], $_SERVER['foo']);
     }
 
     /**
@@ -58,7 +57,9 @@ final class CommonFunctionsSendTest extends CIUnitTestCase
         // send it
         ob_start();
         $response->send();
-        ob_end_clean();
+        if (ob_get_level() > 0) {
+            ob_end_clean();
+        }
 
         // and what actually got sent?
         $this->assertHeaderEmitted('Set-Cookie: foo=onething;');

@@ -125,7 +125,10 @@ final class BaseConfigTest extends CIUnitTestCase
     #[RunInSeparateProcess]
     public function testServerValues(): void
     {
-        service('superglobals')->setServerArray(['simpleconfig.shortie' => 123, 'SimpleConfig.longie' => 456]);
+        $_SERVER = [
+            'simpleconfig.shortie' => 123,
+            'SimpleConfig.longie'  => 456,
+        ];
         $dotenv = new DotEnv($this->fixturesFolder, '.env');
         $dotenv->load();
         $config = new SimpleConfig();

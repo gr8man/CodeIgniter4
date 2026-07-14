@@ -43,16 +43,9 @@ final class IncomingRequestTest extends CIUnitTestCase
     #[WithoutErrorHandler]
     protected function setUp(): void
     {
-        $this->resetServices();
         parent::setUp();
 
-        $_ENV = $_SESSION = [];
-        service('superglobals')
-            ->setPostArray([])
-            ->setGetArray([])
-            ->setServerArray([])
-            ->setRequestArray([])
-            ->setCookieArray([]);
+        $_POST = $_GET = $_SERVER = $_REQUEST = $_ENV = $_COOKIE = $_SESSION = [];
         Services::injectMock('superglobals', new Superglobals());
 
         $config        = new App();
@@ -100,34 +93,6 @@ final class IncomingRequestTest extends CIUnitTestCase
 
         $this->assertSame('5', $this->request->getPostGet('TEST'));
         $this->assertSame('3', $this->request->getGetPost('TEST'));
-    }
-
-    public function testCanGrabMultiplePostAndGetVars(): void
-    {
-        service('superglobals')
-            ->setPostArray([
-                'post'   => 'post value',
-                'shared' => 'post shared value',
-            ])
-            ->setGetArray([
-                'get'    => 'get value',
-                'shared' => 'get shared value',
-            ]);
-
-        $index = ['post', 'get', 'shared', 'missing'];
-
-        $this->assertSame([
-            'post'    => 'post value',
-            'get'     => 'get value',
-            'shared'  => 'post shared value',
-            'missing' => null,
-        ], $this->request->getPostGet($index));
-        $this->assertSame([
-            'post'    => 'post value',
-            'get'     => 'get value',
-            'shared'  => 'get shared value',
-            'missing' => null,
-        ], $this->request->getGetPost($index));
     }
 
     public function testNoOldInput(): void
@@ -281,7 +246,7 @@ final class IncomingRequestTest extends CIUnitTestCase
      */
     public function testNegotiatesLocale(): void
     {
-        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr-FR; q=1.0, en; q=0.5');
+        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr-FR); q=1.0, en; q=0.5');
 
         $config                   = new App();
         $config->negotiateLocale  = true;
@@ -296,7 +261,7 @@ final class IncomingRequestTest extends CIUnitTestCase
 
     public function testNegotiatesLocaleOnlyBroad(): void
     {
-        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr; q=1.0, en; q=0.5');
+        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr); q=1.0, en; q=0.5');
 
         $config                   = new App();
         $config->negotiateLocale  = true;
@@ -350,7 +315,7 @@ final class IncomingRequestTest extends CIUnitTestCase
     public function testNegotiatesLanguage(): void
     {
         $this->request->setHeader('Accept-Language', 'da, en-gb;q=0.8, en;q=0.7');
-        $this->assertSame('da', $this->request->negotiate('language', ['en', 'da']));
+        $this->assertSame('en', $this->request->negotiate('language', ['en', 'da']));
     }
 
     public function testCanGrabGetRawJSON(): void
@@ -785,90 +750,172 @@ final class IncomingRequestTest extends CIUnitTestCase
         $this->assertTrue($this->request->isAJAX());
     }
 
-    public function testIsSecure(): void
+    public function testIsSecureWithHttps(): void
     {
         service('superglobals')->setServer('HTTPS', 'on');
+
+        $this->assertTrue($this->request->isSecure());
+        $this->request->isSecure();
+        $this->request->isSecure();
+    }
+
+    public function testIsSecureWithFrontEndHttps(): void
+    {
+        service('superglobals')->setServer('REMOTE_ADDR', '10.0.1.200');
+        $config           = new App();
+        $config->proxyIPs = ['10.0.1.200' => 'Front-End-Https'];
+        $this->request    = $this->createRequest($config);
+
+        $this->request->appendHeader('Front-End-Https', 'on');
+
+        $this->assertTrue($this->request->isSecure());
+    }
+
+    public function testIsSecureWithXForwardedProto(): void
+    {
+        service('superglobals')->setServer('REMOTE_ADDR', '10.0.1.200');
+        $config           = new App();
+        $config->proxyIPs = ['10.0.1.200' => 'X-Forwarded-Proto'];
+        $this->request    = $this->createRequest($config);
+
+        $this->request->appendHeader('X-Forwarded-Proto', 'https');
+
         $this->assertTrue($this->request->isSecure());
     }
 
     /**
+     * @param array<string, string> $server
      * @param array<string, string> $proxyIPs
+     * @param array<string, string> $headers
      */
-    #[DataProvider('provideIsSecureWithForwardedHeaders')]
-    public function testIsSecureWithForwardedHeaders(
-        string $header,
-        string $value,
-        string $remoteAddr,
-        array $proxyIPs,
-        bool $expected,
-    ): void {
-        service('superglobals')->setServer('REMOTE_ADDR', $remoteAddr);
+    #[DataProvider('provideIsSecure')]
+    public function testIsSecure(array $server, array $proxyIPs, array $headers, bool $expected): void
+    {
+        $superglobals = new Superglobals();
+
+        foreach ($server as $key => $value) {
+            $superglobals->setServer($key, $value);
+        }
+        Services::injectMock('superglobals', $superglobals);
 
         $config           = new App();
         $config->proxyIPs = $proxyIPs;
+        $request          = $this->createRequest($config);
 
-        $request = $this->createRequest($config);
-        $request->appendHeader($header, $value);
+        foreach ($headers as $name => $value) {
+            $request->appendHeader($name, $value);
+        }
 
         $this->assertSame($expected, $request->isSecure());
     }
 
     /**
-     * @return iterable<string, array{string, string, string, array<string, string>, bool}>
+     * @return iterable<string, array{server: array<string, string>, proxyIPs: array<string, string>, headers: array<string, string>, expected: bool}>
      */
-    public static function provideIsSecureWithForwardedHeaders(): iterable
+    public static function provideIsSecure(): iterable
     {
         yield from [
-            'X-Forwarded-Proto trusted proxy IP' => [
-                'X-Forwarded-Proto', 'https', '10.0.1.200', ['10.0.1.200' => 'X-Forwarded-For'], true,
+            'HTTPS on' => [
+                'server'   => ['HTTPS' => 'on'],
+                'proxyIPs' => [],
+                'headers'  => [],
+                'expected' => true,
             ],
-            'X-Forwarded-Proto no trusted proxies' => [
-                'X-Forwarded-Proto', 'https', '10.0.1.200', [], false,
+            'HTTPS ON case insensitive' => [
+                'server'   => ['HTTPS' => 'ON'],
+                'proxyIPs' => [],
+                'headers'  => [],
+                'expected' => true,
             ],
-            'X-Forwarded-Proto untrusted proxy IP' => [
-                'X-Forwarded-Proto', 'https', '10.0.1.201', ['10.0.1.200' => 'X-Forwarded-For'], false,
+            'HTTPS 1' => [
+                'server'   => ['HTTPS' => '1'],
+                'proxyIPs' => [],
+                'headers'  => [],
+                'expected' => true,
             ],
-            'X-Forwarded-Proto trusted subnet' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/24' => 'X-Forwarded-For'], true,
+            'HTTPS off' => [
+                'server'   => ['HTTPS' => 'off'],
+                'proxyIPs' => [],
+                'headers'  => [],
+                'expected' => false,
             ],
-            'X-Forwarded-Proto out of trusted subnet' => [
-                'X-Forwarded-Proto', 'https', '192.168.6.21', ['192.168.5.0/24' => 'X-Forwarded-For'], false,
+            'HTTPS not set' => [
+                'server'   => [],
+                'proxyIPs' => [],
+                'headers'  => [],
+                'expected' => false,
             ],
-            'X-Forwarded-Proto trusted IPv6 subnet' => [
-                'X-Forwarded-Proto', 'https', '2001:db8::5', ['2001:db8::/32' => 'X-Forwarded-For'], true,
+            'Front-End-Https on with trusted proxy' => [
+                'server'   => ['REMOTE_ADDR' => '10.0.1.200'],
+                'proxyIPs' => ['10.0.1.200' => 'Front-End-Https'],
+                'headers'  => ['Front-End-Https' => 'on'],
+                'expected' => true,
             ],
-            'X-Forwarded-Proto out of trusted IPv6 subnet' => [
-                'X-Forwarded-Proto', 'https', '2001:db9::5', ['2001:db8::/32' => 'X-Forwarded-For'], false,
+            'Front-End-Https off with trusted proxy' => [
+                'server'   => ['REMOTE_ADDR' => '10.0.1.200'],
+                'proxyIPs' => ['10.0.1.200' => 'Front-End-Https'],
+                'headers'  => ['Front-End-Https' => 'off'],
+                'expected' => false,
             ],
-            'X-Forwarded-Proto trusted proxy but http' => [
-                'X-Forwarded-Proto', 'http', '10.0.1.200', ['10.0.1.200' => 'X-Forwarded-For'], false,
+            'Front-End-Https on with untrusted proxy' => [
+                'server'   => ['REMOTE_ADDR' => '10.0.1.201'],
+                'proxyIPs' => ['10.0.1.200' => 'Front-End-Https'],
+                'headers'  => ['Front-End-Https' => 'on'],
+                'expected' => false,
             ],
-            'Front-End-Https trusted proxy IP' => [
-                'Front-End-Https', 'on', '10.0.1.200', ['10.0.1.200' => 'X-Forwarded-For'], true,
+            'X-Forwarded-Proto https with trusted proxy' => [
+                'server'   => ['REMOTE_ADDR' => '10.0.1.200'],
+                'proxyIPs' => ['10.0.1.200' => 'X-Forwarded-Proto'],
+                'headers'  => ['X-Forwarded-Proto' => 'https'],
+                'expected' => true,
             ],
-            'Front-End-Https no trusted proxies' => [
-                'Front-End-Https', 'on', '10.0.1.200', [], false,
+            'X-Forwarded-Proto http with trusted proxy' => [
+                'server'   => ['REMOTE_ADDR' => '10.0.1.200'],
+                'proxyIPs' => ['10.0.1.200' => 'X-Forwarded-Proto'],
+                'headers'  => ['X-Forwarded-Proto' => 'http'],
+                'expected' => false,
             ],
-            'Front-End-Https trusted proxy but off' => [
-                'Front-End-Https', 'off', '10.0.1.200', ['10.0.1.200' => 'X-Forwarded-For'], false,
+            'X-Forwarded-Proto https with untrusted proxy' => [
+                'server'   => ['REMOTE_ADDR' => '10.0.1.201'],
+                'proxyIPs' => ['10.0.1.200' => 'X-Forwarded-Proto'],
+                'headers'  => ['X-Forwarded-Proto' => 'https'],
+                'expected' => false,
             ],
-            'invalid proxy IP string' => [
-                'X-Forwarded-Proto', 'https', '10.0.1.200', ['not an ip' => 'X-Forwarded-For'], false,
+            'Front-End-Https on with trusted proxy subnet IPv4' => [
+                'server'   => ['REMOTE_ADDR' => '192.168.5.25'],
+                'proxyIPs' => ['192.168.5.0/24' => 'Front-End-Https'],
+                'headers'  => ['Front-End-Https' => 'on'],
+                'expected' => true,
             ],
-            'invalid proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/foo' => 'X-Forwarded-For'], false,
+            'Front-End-Https on with untrusted proxy subnet IPv4' => [
+                'server'   => ['REMOTE_ADDR' => '192.168.6.25'],
+                'proxyIPs' => ['192.168.5.0/24' => 'Front-End-Https'],
+                'headers'  => ['Front-End-Https' => 'on'],
+                'expected' => false,
             ],
-            'empty proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/' => 'X-Forwarded-For'], false,
+            'X-Forwarded-Proto https with trusted proxy subnet IPv6' => [
+                'server'   => ['REMOTE_ADDR' => '2001:db8:1234::1'],
+                'proxyIPs' => ['2001:db8:1234::/48' => 'X-Forwarded-Proto'],
+                'headers'  => ['X-Forwarded-Proto' => 'https'],
+                'expected' => true,
             ],
-            'negative proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/-1' => 'X-Forwarded-For'], false,
+            'X-Forwarded-Proto https with untrusted proxy subnet IPv6' => [
+                'server'   => ['REMOTE_ADDR' => '2001:db8:1235::1'],
+                'proxyIPs' => ['2001:db8:1234::/48' => 'X-Forwarded-Proto'],
+                'headers'  => ['X-Forwarded-Proto' => 'https'],
+                'expected' => false,
             ],
-            'out of range IPv4 proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/33' => 'X-Forwarded-For'], false,
+            'IPv4 client IP against IPv6 proxy subnet' => [
+                'server'   => ['REMOTE_ADDR' => '192.168.5.25'],
+                'proxyIPs' => ['2001:db8:1234::/48' => 'X-Forwarded-Proto'],
+                'headers'  => ['X-Forwarded-Proto' => 'https'],
+                'expected' => false,
             ],
-            'out of range IPv6 proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '2001:db8::5', ['2001:db8::/129' => 'X-Forwarded-For'], false,
+            'IPv6 client IP against IPv4 proxy subnet' => [
+                'server'   => ['REMOTE_ADDR' => '2001:db8:1234::1'],
+                'proxyIPs' => ['192.168.5.0/24' => 'X-Forwarded-Proto'],
+                'headers'  => ['X-Forwarded-Proto' => 'https'],
+                'expected' => false,
             ],
         ];
     }

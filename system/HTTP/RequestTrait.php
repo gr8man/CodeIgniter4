@@ -85,7 +85,6 @@ trait RequestTrait
             return $this->ipAddress = '0.0.0.0';
         }
 
-        // @TODO Extract all this IP address logic to another class.
         foreach ($proxyIPs as $proxyIP => $header) {
             if ($this->checkIPAgainstProxy($this->ipAddress, (string) $proxyIP)) {
                 $spoof = $this->getClientIP($header);
@@ -102,6 +101,36 @@ trait RequestTrait
         }
 
         return $this->ipAddress;
+    }
+
+    /**
+     * Checks if the given IP address matches the proxy IP/subnet.
+     */
+    protected function checkIPAgainstProxy(string $ipAddress, string $proxyIP): bool
+    {
+        if (! str_contains($proxyIP, '/')) {
+            return $proxyIP === $ipAddress;
+        }
+
+        [$netAddr, $maskLen] = explode('/', $proxyIP, 2);
+
+        if (str_contains($ipAddress, ':') !== str_contains($netAddr, ':')) {
+            return false;
+        }
+
+        $ipPacked  = inet_pton($ipAddress);
+        $netPacked = inet_pton($netAddr);
+
+        if ($ipPacked === false || $netPacked === false) {
+            return false;
+        }
+
+        $toBits = static fn (string $packed): string => implode('', array_map(
+            static fn ($byte): string => str_pad(decbin(ord($byte)), 8, '0', STR_PAD_LEFT),
+            str_split($packed),
+        ));
+
+        return strncmp($toBits($ipPacked), $toBits($netPacked), (int) $maskLen) === 0;
     }
 
     /**
@@ -130,92 +159,6 @@ trait RequestTrait
         }
 
         return $spoof;
-    }
-
-    /**
-     * Checks if the request comes from one of the trusted proxies
-     * configured in Config\App::$proxyIPs.
-     */
-    protected function isFromTrustedProxy(): bool
-    {
-        $proxyIPs = $this->config->proxyIPs;
-
-        if (! is_array($proxyIPs) || $proxyIPs === []) {
-            return false;
-        }
-
-        $remoteAddr = $this->getServer('REMOTE_ADDR');
-
-        if (! is_string($remoteAddr) || $remoteAddr === '') {
-            return false;
-        }
-
-        foreach (array_keys($proxyIPs) as $proxyIP) {
-            if ($this->checkIPAgainstProxy($remoteAddr, (string) $proxyIP)) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Checks if the given IP address matches the trusted proxy entry,
-     * which may be a single IP address or a subnet in CIDR notation.
-     * Supports both IPv4 and IPv6.
-     */
-    private function checkIPAgainstProxy(string $ip, string $proxyIP): bool
-    {
-        $maskLength = null;
-
-        if (str_contains($proxyIP, '/')) {
-            [$proxyIP, $mask] = explode('/', $proxyIP, 2);
-
-            if ($mask === '' || ! ctype_digit($mask)) {
-                return false;
-            }
-
-            $maskLength = (int) $mask;
-        }
-
-        $binaryIP    = inet_pton($ip);
-        $binaryProxy = inet_pton($proxyIP);
-
-        if ($binaryIP === false || $binaryProxy === false) {
-            return false;
-        }
-
-        // If the proxy entry doesn't match the IP protocol - no match
-        if (strlen($binaryIP) !== strlen($binaryProxy)) {
-            return false;
-        }
-
-        if ($maskLength === null) {
-            return $binaryIP === $binaryProxy;
-        }
-
-        if ($maskLength > strlen($binaryIP) * 8) {
-            return false;
-        }
-
-        if ($maskLength === 0) {
-            return true;
-        }
-
-        $fullBytes     = intdiv($maskLength, 8);
-        $remainingBits = $maskLength % 8;
-
-        if ($fullBytes > 0 && strncmp($binaryIP, $binaryProxy, $fullBytes) !== 0) {
-            return false;
-        }
-
-        if ($remainingBits > 0) {
-            $bitmask = 0xFF & (0xFF << (8 - $remainingBits));
-
-            return (ord($binaryIP[$fullBytes]) & $bitmask) === (ord($binaryProxy[$fullBytes]) & $bitmask);
-        }
-
-        return true;
     }
 
     /**
@@ -283,7 +226,7 @@ trait RequestTrait
      * @param int|null                                 $filter Filter constant
      * @param array|int|null                           $flags  Options
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function fetchGlobal(string $name, $index = null, ?int $filter = null, $flags = null)
     {

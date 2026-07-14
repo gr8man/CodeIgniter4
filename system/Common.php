@@ -154,7 +154,7 @@ if (! function_exists('command')) {
             $cursor += strlen($match[0]);
         }
 
-        /** @var array<array-key, string|null> */
+        /** @var array<int|string, string|null> */
         $params      = [];
         $command     = array_shift($args);
         $optionValue = false;
@@ -185,21 +185,13 @@ if (! function_exists('command')) {
             $params[$arg] = $value;
         }
 
-        $bufferLevel = ob_get_level();
-
         try {
             ob_start();
             service('commands')->run($command, $params);
 
-            if (ob_get_level() <= $bufferLevel) {
-                return false;
-            }
-
             return ob_get_contents();
         } finally {
-            while (ob_get_level() > $bufferLevel) {
-                ob_end_clean();
-            }
+            ob_end_clean();
         }
     }
 }
@@ -411,23 +403,17 @@ if (! function_exists('env')) {
      * retrieving values set from the .env file for
      * use in config files.
      *
-     * @param mixed $default
+     * @param array<int|string, mixed>|bool|float|int|object|string|null $default
      *
-     * @return mixed
+     * @return array<int|string, mixed>|bool|float|int|object|string|null
      */
     function env(string $key, $default = null)
     {
-        $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key); // @phpstan-ignore codeigniter.superglobalsOffsetAccess (reads live $_SERVER, not the snapshot service)
+        $value = $_ENV[$key] ?? $_SERVER[$key] ?? getenv($key);
 
         // Not found? Return the default value
         if ($value === false) {
             return $default;
-        }
-
-        // Non-string values (e.g. $_SERVER['argc'] is int, $_SERVER['argv'] is array in CLI)
-        // must be returned as-is to avoid TypeError from strtolower().
-        if (! is_string($value)) {
-            return $value;
         }
 
         // Handle any boolean values
@@ -450,13 +436,13 @@ if (! function_exists('esc')) {
      * If $data is an array, then it loops over it, escaping each
      * 'value' of the key/value pairs.
      *
-     * @param array<array-key, array<array-key, mixed>|string>|string $data
-     * @param 'attr'|'css'|'html'|'js'|'raw'|'url'                    $context
-     * @param string|null                                             $encoding Current encoding for escaping.
-     *                                                                          If not UTF-8, we convert strings from this encoding
-     *                                                                          pre-escaping and back to this encoding post-escaping.
+     * @param array<int|string, array<int|string, mixed>|string>|string $data
+     * @param 'attr'|'css'|'html'|'js'|'raw'|'url'                      $context
+     * @param string|null                                               $encoding Current encoding for escaping.
+     *                                                                            If not UTF-8, we convert strings from this encoding
+     *                                                                            pre-escaping and back to this encoding post-escaping.
      *
-     * @return ($data is string ? string : array<array-key, array<array-key, mixed>|string>)
+     * @return ($data is string ? string : array<int|string, array<int|string, mixed>|string>)
      *
      * @throws InvalidArgumentException
      */
@@ -473,10 +459,8 @@ if (! function_exists('esc')) {
 
         if (is_array($data)) {
             foreach ($data as &$value) {
-                $value = esc($value, $context, $encoding);
+                $value = esc($value, $context);
             }
-
-            return $data;
         }
 
         if (is_string($data)) {
@@ -486,14 +470,16 @@ if (! function_exists('esc')) {
 
             $method = $context === 'attr' ? 'escapeHtmlAttr' : 'escape' . ucfirst($context);
 
-            static $escapers = [];
-            $cacheKey        = strtolower($encoding ?? 'utf-8');
-
-            if (! isset($escapers[$cacheKey])) {
-                $escapers[$cacheKey] = new Escaper($encoding);
+            static $escaper;
+            if (! $escaper) {
+                $escaper = new Escaper($encoding);
             }
 
-            $data = $escapers[$cacheKey]->{$method}($data);
+            if ($encoding !== null && $escaper->getEncoding() !== $encoding) {
+                $escaper = new Escaper($encoding);
+            }
+
+            $data = $escaper->{$method}($data);
         }
 
         return $data;
@@ -705,7 +691,7 @@ if (! function_exists('is_cli')) {
 
         // PHP_SAPI could be 'cgi-fcgi', 'fpm-fcgi'.
         // See https://github.com/codeigniter4/CodeIgniter4/pull/5393
-        return ! isset($_SERVER['REMOTE_ADDR']) && ! isset($_SERVER['REQUEST_METHOD']); // @phpstan-ignore codeigniter.superglobalsOffsetAccess (reads live $_SERVER, not the snapshot service), codeigniter.superglobalsOffsetAccess (reads live $_SERVER, not the snapshot service)
+        return ! isset($_SERVER['REMOTE_ADDR']) && ! isset($_SERVER['REQUEST_METHOD']);
     }
 }
 
@@ -1088,7 +1074,7 @@ if (! function_exists('service')) {
      *  - $timer = service('timer')
      *  - $timer = \CodeIgniter\Config\Services::timer();
      *
-     * @param mixed ...$params
+     * @param array|bool|float|int|object|string|null ...$params
      */
     function service(string $name, ...$params): ?object
     {
@@ -1104,7 +1090,7 @@ if (! function_exists('single_service')) {
     /**
      * Always returns a new instance of the class.
      *
-     * @param mixed ...$params
+     * @param array|bool|float|int|object|string|null ...$params
      */
     function single_service(string $name, ...$params): ?object
     {

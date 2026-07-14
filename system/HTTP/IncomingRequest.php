@@ -272,15 +272,31 @@ class IncomingRequest extends Request
             return true;
         }
 
-        if (! $this->isFromTrustedProxy()) {
-            return false;
+        if ($this->hasHeader('X-Forwarded-Proto') || $this->hasHeader('Front-End-Https')) {
+            $isFromTrustedProxy = false;
+            $remoteAddr         = $this->getServer('REMOTE_ADDR');
+
+            if ($remoteAddr !== null && is_array($this->config->proxyIPs)) {
+                foreach (array_keys($this->config->proxyIPs) as $proxyIP) {
+                    if ($this->checkIPAgainstProxy($remoteAddr, (string) $proxyIP)) {
+                        $isFromTrustedProxy = true;
+                        break;
+                    }
+                }
+            }
+
+            if ($isFromTrustedProxy) {
+                if ($this->hasHeader('X-Forwarded-Proto') && $this->header('X-Forwarded-Proto')->getValue() === 'https') {
+                    return true;
+                }
+
+                if ($this->hasHeader('Front-End-Https') && ! empty($this->header('Front-End-Https')->getValue()) && strtolower($this->header('Front-End-Https')->getValue()) !== 'off') {
+                    return true;
+                }
+            }
         }
 
-        if ($this->hasHeader('X-Forwarded-Proto') && $this->header('X-Forwarded-Proto')->getValue() === 'https') {
-            return true;
-        }
-
-        return $this->hasHeader('Front-End-Https') && ! empty($this->header('Front-End-Https')->getValue()) && strtolower($this->header('Front-End-Https')->getValue()) !== 'off';
+        return false;
     }
 
     /**
@@ -367,7 +383,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter Filter constant
      * @param array|int|null    $flags
      *
-     * @return array<array-key, mixed>|bool|float|int|stdClass|string|null
+     * @return array|bool|float|int|stdClass|string|null
      */
     public function getVar($index = null, $filter = null, $flags = null)
     {
@@ -394,7 +410,7 @@ class IncomingRequest extends Request
      *
      * @see http://php.net/manual/en/function.json-decode.php
      *
-     * @return array<array-key, mixed>|bool|float|int|stdClass|null
+     * @return array|bool|float|int|stdClass|null
      *
      * @throws HTTPException When the body is invalid as JSON.
      */
@@ -421,7 +437,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter Filter Constant
      * @param array|int|null    $flags  Option
      *
-     * @return array<array-key, mixed>|bool|float|int|stdClass|string|null
+     * @return array|bool|float|int|stdClass|string|null
      */
     public function getJsonVar($index = null, bool $assoc = false, ?int $filter = null, $flags = null)
     {
@@ -512,7 +528,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter Filter Constant
      * @param array|int|null    $flags  Option
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getRawInputVar($index = null, ?int $filter = null, $flags = null)
     {
@@ -566,7 +582,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to apply.
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getGet($index = null, $filter = null, $flags = null)
     {
@@ -580,7 +596,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to apply
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getPost($index = null, $filter = null, $flags = null)
     {
@@ -594,22 +610,12 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to apply
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getPostGet($index = null, $filter = null, $flags = null)
     {
         if ($index === null) {
             return array_merge($this->getGet($index, $filter, $flags), $this->getPost($index, $filter, $flags));
-        }
-
-        if (is_array($index)) {
-            $output = [];
-
-            foreach ($index as $key) {
-                $output[$key] = $this->getPostGet($key, $filter, $flags);
-            }
-
-            return $output;
         }
 
         // Use $_POST directly here, since filter_has_var only
@@ -627,22 +633,12 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to apply
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getGetPost($index = null, $filter = null, $flags = null)
     {
         if ($index === null) {
             return array_merge($this->getPost($index, $filter, $flags), $this->getGet($index, $filter, $flags));
-        }
-
-        if (is_array($index)) {
-            $output = [];
-
-            foreach ($index as $key) {
-                $output[$key] = $this->getGetPost($key, $filter, $flags);
-            }
-
-            return $output;
         }
 
         // Use $_GET directly here, since filter_has_var only
@@ -660,7 +656,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to be applied
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getCookie($index = null, $filter = null, $flags = null)
     {
