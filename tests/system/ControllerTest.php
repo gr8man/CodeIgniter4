@@ -74,7 +74,7 @@ final class ControllerTest extends CIUnitTestCase
     public function testConstructorHTTPS(): void
     {
         $original = $_SERVER;
-        service('superglobals')->setServerArray(['HTTPS' => 'on']);
+        $_SERVER  = ['HTTPS' => 'on'];
 
         // make sure we can instantiate one
         try {
@@ -86,7 +86,7 @@ final class ControllerTest extends CIUnitTestCase
         }
 
         $this->assertInstanceOf(Controller::class, $this->controller);
-        service('superglobals')->setServerArray($original); // restore so code coverage doesn't break
+        $_SERVER = $original; // restore so code coverage doesn't break
     }
 
     public function testCachePageSetsTtl(): void

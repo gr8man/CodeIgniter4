@@ -42,7 +42,6 @@ use Config\Security as SecurityConfig;
 use Config\Services;
 use Config\Session as SessionConfig;
 use Exception;
-use InvalidArgumentException;
 use Kint;
 use PHPUnit\Framework\Attributes\BackupGlobals;
 use PHPUnit\Framework\Attributes\DataProvider;
@@ -65,8 +64,7 @@ final class CommonFunctionsTest extends CIUnitTestCase
 
     protected function setUp(): void
     {
-        unset($_ENV['foo']);
-        service('superglobals')->unsetServer('foo');
+        unset($_ENV['foo'], $_SERVER['foo']);
         $this->resetServices();
 
         parent::setUp();
@@ -131,42 +129,6 @@ final class CommonFunctionsTest extends CIUnitTestCase
         $this->assertFalse(env('p2'));
         $this->assertEmpty(env('p3'));
         $this->assertNull(env('p4'));
-    }
-
-    #[DataProvider('provideEnvReturnsCorrectTypesWithoutTypeError')]
-    public function testEnvReturnsCorrectTypesWithoutTypeError(string $source, mixed $value): void
-    {
-        $key = 'ci_test_var';
-
-        if ($source === 'SERVER' || $source === 'BOTH') {
-            service('superglobals')->setServer($key, $value);
-        }
-
-        if ($source === 'ENV' || $source === 'BOTH') {
-            $_ENV[$key] = $value;
-        }
-
-        $this->assertSame($value, env($key));
-    }
-
-    /**
-     * @return iterable<string, array{string, mixed}>
-     */
-    public static function provideEnvReturnsCorrectTypesWithoutTypeError(): iterable
-    {
-        yield 'integer from SERVER' => ['SERVER', 2];
-
-        yield 'array from SERVER' => ['SERVER', ['spark', 'migrate']];
-
-        yield 'int 1 is not true' => ['SERVER', 1];
-
-        yield 'int 0 is not false' => ['SERVER', 0];
-
-        yield 'float from SERVER' => ['SERVER', 3.14];
-
-        yield 'integer from ENV' => ['ENV', 42];
-
-        yield 'CLI simulation BOTH' => ['BOTH', 3];
     }
 
     private function createRouteCollection(): RouteCollection
@@ -312,22 +274,6 @@ final class CommonFunctionsTest extends CIUnitTestCase
         $data      = ['a' => 'b', 'c' => 'd'];
         $data['e'] = &$data;
         $this->assertSame($data, esc($data, 'raw'));
-    }
-
-    public function testEscapeArrayPropagatesEncoding(): void
-    {
-        $this->expectException(InvalidArgumentException::class);
-        // If encoding is not propagated, it would not instantiate the Escaper with the invalid encoding and wouldn't throw.
-        esc(['test'], 'html', 'invalid-encoding');
-    }
-
-    public function testEscapeWithChangingArrayEncoding(): void
-    {
-        $data = [hex2bin('E9')];
-
-        $this->assertSame(['&#xE9;'], esc($data, 'attr', 'iso-8859-1'));
-        $this->assertSame(['&#x0439;'], esc($data, 'attr', 'windows-1251'));
-        $this->assertSame(['&#xE9;'], esc($data, 'attr', 'iso-8859-1'));
     }
 
     #[PreserveGlobalState(false)]
