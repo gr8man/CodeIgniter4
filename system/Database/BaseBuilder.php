@@ -577,6 +577,8 @@ class BaseBuilder
      * Generates the FROM portion of the query
      *
      * @param array|string $from
+     *
+     * @return $this
      */
     public function from($from, bool $overwrite = false): self
     {
@@ -606,6 +608,8 @@ class BaseBuilder
     /**
      * @param BaseBuilder $from  Expected subquery
      * @param string      $alias Subquery alias
+     *
+     * @return $this
      */
     public function fromSubquery(BaseBuilder $from, string $alias): self
     {
@@ -2813,7 +2817,7 @@ class BaseBuilder
     /**
      * Compiles a delete string and runs the query
      *
-     * @param array<array-key, mixed>|RawSql|string $where
+     * @param array<int|string, mixed>|RawSql|string $where
      *
      * @return bool|string Returns a SQL string if in test mode.
      *
