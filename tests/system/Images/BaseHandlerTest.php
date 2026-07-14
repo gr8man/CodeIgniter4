@@ -130,4 +130,24 @@ final class BaseHandlerTest extends CIUnitTestCase
         $handler->withFile($this->path);
         $this->assertSame($this->path, $handler->getPathname());
     }
+
+    public function testReproportionWithFloatZero(): void
+    {
+        $handler = Services::image('gd', null, false);
+        $handler->withFile($this->path);
+
+        $image             = $handler->getFile();
+        $image->origWidth  = 0.0;
+        $image->origHeight = 0.0;
+
+        $expectedWidth  = $handler->getWidth();
+        $expectedHeight = $handler->getHeight();
+
+        $invoker = $this->getPrivateMethodInvoker($handler, 'reproportion');
+
+        $invoker();
+
+        $this->assertSame($expectedWidth, $handler->getWidth());
+        $this->assertSame($expectedHeight, $handler->getHeight());
+    }
 }

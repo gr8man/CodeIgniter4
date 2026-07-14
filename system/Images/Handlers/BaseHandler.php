@@ -720,29 +720,38 @@ abstract class BaseHandler implements ImageHandlerInterface
      */
     protected function reproportion()
     {
-        if (($this->width === 0 && $this->height === 0) || $this->image()->origWidth === 0 || $this->image()->origHeight === 0 || (! ctype_digit((string) $this->width) && ! ctype_digit((string) $this->height)) || ! ctype_digit((string) $this->image()->origWidth) || ! ctype_digit((string) $this->image()->origHeight)) {
+        $image = $this->image();
+        $origW = $image->origWidth;
+        $origH = $image->origHeight;
+        $w     = $this->width;
+        $h     = $this->height;
+
+        if ($origW === 0 || $origW === 0.0 || $origH === 0 || $origH === 0.0) {
             return;
         }
 
-        // Sanitize
-        $this->width  = (int) $this->width;
-        $this->height = (int) $this->height;
+        if (($w === 0 || $w === 0.0) && ($h === 0 || $h === 0.0)) {
+            return;
+        }
+
+        $w     = (int) $w;
+        $h     = (int) $h;
+        $origW = (int) $origW;
+        $origH = (int) $origH;
+
+        $this->width  = $w;
+        $this->height = $h;
 
         if ($this->masterDim !== 'width' && $this->masterDim !== 'height') {
-            if ($this->width > 0 && $this->height > 0) {
-                $this->masterDim = ((($this->image()->origHeight / $this->image()->origWidth) - ($this->height / $this->width)) < 0) ? 'width' : 'height';
-            } else {
-                $this->masterDim = ($this->height === 0) ? 'width' : 'height';
-            }
-        } elseif (($this->masterDim === 'width' && $this->width === 0) || ($this->masterDim === 'height' && $this->height === 0)
-        ) {
+            $this->masterDim = ($h === 0 || ($w > 0 && (($origH / $origW) - ($h / $w) < 0))) ? 'width' : 'height';
+        } elseif (($this->masterDim === 'width' && $w === 0) || ($this->masterDim === 'height' && $h === 0)) {
             return;
         }
 
         if ($this->masterDim === 'width') {
-            $this->height = (int) ceil($this->width * $this->image()->origHeight / $this->image()->origWidth);
+            $this->height = (int) ceil($w * $origH / $origW);
         } else {
-            $this->width = (int) ceil($this->image()->origWidth * $this->height / $this->image()->origHeight);
+            $this->width = (int) ceil($origW * $h / $origH);
         }
     }
 

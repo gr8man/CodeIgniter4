@@ -1230,8 +1230,7 @@ Generates a batch **DELETE** statement based on a set of data.
 
 This method may be especially useful when deleting data in a table with a composite primary key.
 
-.. note:: The SQLite3 driver does not support additional Query Builder WHERE
-    conditions for ``deleteBatch()``.
+.. note:: SQLite3 does not support the use of ``where()``.
 
 Delete from a Query
 ^^^^^^^^^^^^^^^^^^^
