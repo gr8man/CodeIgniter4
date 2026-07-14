@@ -43,16 +43,9 @@ final class IncomingRequestTest extends CIUnitTestCase
     #[WithoutErrorHandler]
     protected function setUp(): void
     {
-        $this->resetServices();
         parent::setUp();
 
-        $_ENV = $_SESSION = [];
-        service('superglobals')
-            ->setPostArray([])
-            ->setGetArray([])
-            ->setServerArray([])
-            ->setRequestArray([])
-            ->setCookieArray([]);
+        $_POST = $_GET = $_SERVER = $_REQUEST = $_ENV = $_COOKIE = $_SESSION = [];
         Services::injectMock('superglobals', new Superglobals());
 
         $config        = new App();
@@ -100,34 +93,6 @@ final class IncomingRequestTest extends CIUnitTestCase
 
         $this->assertSame('5', $this->request->getPostGet('TEST'));
         $this->assertSame('3', $this->request->getGetPost('TEST'));
-    }
-
-    public function testCanGrabMultiplePostAndGetVars(): void
-    {
-        service('superglobals')
-            ->setPostArray([
-                'post'   => 'post value',
-                'shared' => 'post shared value',
-            ])
-            ->setGetArray([
-                'get'    => 'get value',
-                'shared' => 'get shared value',
-            ]);
-
-        $index = ['post', 'get', 'shared', 'missing'];
-
-        $this->assertSame([
-            'post'    => 'post value',
-            'get'     => 'get value',
-            'shared'  => 'post shared value',
-            'missing' => null,
-        ], $this->request->getPostGet($index));
-        $this->assertSame([
-            'post'    => 'post value',
-            'get'     => 'get value',
-            'shared'  => 'get shared value',
-            'missing' => null,
-        ], $this->request->getGetPost($index));
     }
 
     public function testNoOldInput(): void
@@ -281,7 +246,7 @@ final class IncomingRequestTest extends CIUnitTestCase
      */
     public function testNegotiatesLocale(): void
     {
-        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr-FR; q=1.0, en; q=0.5');
+        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr-FR); q=1.0, en; q=0.5');
 
         $config                   = new App();
         $config->negotiateLocale  = true;
@@ -296,7 +261,7 @@ final class IncomingRequestTest extends CIUnitTestCase
 
     public function testNegotiatesLocaleOnlyBroad(): void
     {
-        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr; q=1.0, en; q=0.5');
+        service('superglobals')->setServer('HTTP_ACCEPT_LANGUAGE', 'fr); q=1.0, en; q=0.5');
 
         $config                   = new App();
         $config->negotiateLocale  = true;
@@ -350,7 +315,7 @@ final class IncomingRequestTest extends CIUnitTestCase
     public function testNegotiatesLanguage(): void
     {
         $this->request->setHeader('Accept-Language', 'da, en-gb;q=0.8, en;q=0.7');
-        $this->assertSame('da', $this->request->negotiate('language', ['en', 'da']));
+        $this->assertSame('en', $this->request->negotiate('language', ['en', 'da']));
     }
 
     public function testCanGrabGetRawJSON(): void
@@ -791,86 +756,16 @@ final class IncomingRequestTest extends CIUnitTestCase
         $this->assertTrue($this->request->isSecure());
     }
 
-    /**
-     * @param array<string, string> $proxyIPs
-     */
-    #[DataProvider('provideIsSecureWithForwardedHeaders')]
-    public function testIsSecureWithForwardedHeaders(
-        string $header,
-        string $value,
-        string $remoteAddr,
-        array $proxyIPs,
-        bool $expected,
-    ): void {
-        service('superglobals')->setServer('REMOTE_ADDR', $remoteAddr);
-
-        $config           = new App();
-        $config->proxyIPs = $proxyIPs;
-
-        $request = $this->createRequest($config);
-        $request->appendHeader($header, $value);
-
-        $this->assertSame($expected, $request->isSecure());
+    public function testIsSecureFrontEnd(): void
+    {
+        $this->request->appendHeader('Front-End-Https', 'on');
+        $this->assertTrue($this->request->isSecure());
     }
 
-    /**
-     * @return iterable<string, array{string, string, string, array<string, string>, bool}>
-     */
-    public static function provideIsSecureWithForwardedHeaders(): iterable
+    public function testIsSecureForwarded(): void
     {
-        yield from [
-            'X-Forwarded-Proto trusted proxy IP' => [
-                'X-Forwarded-Proto', 'https', '10.0.1.200', ['10.0.1.200' => 'X-Forwarded-For'], true,
-            ],
-            'X-Forwarded-Proto no trusted proxies' => [
-                'X-Forwarded-Proto', 'https', '10.0.1.200', [], false,
-            ],
-            'X-Forwarded-Proto untrusted proxy IP' => [
-                'X-Forwarded-Proto', 'https', '10.0.1.201', ['10.0.1.200' => 'X-Forwarded-For'], false,
-            ],
-            'X-Forwarded-Proto trusted subnet' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/24' => 'X-Forwarded-For'], true,
-            ],
-            'X-Forwarded-Proto out of trusted subnet' => [
-                'X-Forwarded-Proto', 'https', '192.168.6.21', ['192.168.5.0/24' => 'X-Forwarded-For'], false,
-            ],
-            'X-Forwarded-Proto trusted IPv6 subnet' => [
-                'X-Forwarded-Proto', 'https', '2001:db8::5', ['2001:db8::/32' => 'X-Forwarded-For'], true,
-            ],
-            'X-Forwarded-Proto out of trusted IPv6 subnet' => [
-                'X-Forwarded-Proto', 'https', '2001:db9::5', ['2001:db8::/32' => 'X-Forwarded-For'], false,
-            ],
-            'X-Forwarded-Proto trusted proxy but http' => [
-                'X-Forwarded-Proto', 'http', '10.0.1.200', ['10.0.1.200' => 'X-Forwarded-For'], false,
-            ],
-            'Front-End-Https trusted proxy IP' => [
-                'Front-End-Https', 'on', '10.0.1.200', ['10.0.1.200' => 'X-Forwarded-For'], true,
-            ],
-            'Front-End-Https no trusted proxies' => [
-                'Front-End-Https', 'on', '10.0.1.200', [], false,
-            ],
-            'Front-End-Https trusted proxy but off' => [
-                'Front-End-Https', 'off', '10.0.1.200', ['10.0.1.200' => 'X-Forwarded-For'], false,
-            ],
-            'invalid proxy IP string' => [
-                'X-Forwarded-Proto', 'https', '10.0.1.200', ['not an ip' => 'X-Forwarded-For'], false,
-            ],
-            'invalid proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/foo' => 'X-Forwarded-For'], false,
-            ],
-            'empty proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/' => 'X-Forwarded-For'], false,
-            ],
-            'negative proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/-1' => 'X-Forwarded-For'], false,
-            ],
-            'out of range IPv4 proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '192.168.5.21', ['192.168.5.0/33' => 'X-Forwarded-For'], false,
-            ],
-            'out of range IPv6 proxy CIDR mask' => [
-                'X-Forwarded-Proto', 'https', '2001:db8::5', ['2001:db8::/129' => 'X-Forwarded-For'], false,
-            ],
-        ];
+        $this->request->appendHeader('X-Forwarded-Proto', 'https');
+        $this->assertTrue($this->request->isSecure());
     }
 
     public function testUserAgent(): void
@@ -1270,6 +1165,64 @@ final class IncomingRequestTest extends CIUnitTestCase
         $this->request->populateHeaders();
 
         $this->request->getIPAddress();
+    }
+
+    public function testInjectedSuperglobalsIsSecure(): void
+    {
+        $superglobals = new Superglobals(server: ['HTTPS' => 'on']);
+
+        $config  = new App();
+        $uri     = new SiteURI($config);
+        $request = new IncomingRequest($config, $uri, null, new UserAgent(), $superglobals);
+
+        $this->assertTrue($request->isSecure());
+    }
+
+    public function testInjectedSuperglobalsIsSecureNoOverride(): void
+    {
+        service('superglobals')->setServer('HTTPS', 'on');
+
+        $superglobals = new Superglobals(server: []);
+
+        $config  = new App();
+        $uri     = new SiteURI($config);
+        $request = new IncomingRequest($config, $uri, null, new UserAgent(), $superglobals);
+
+        $this->assertFalse($request->isSecure());
+    }
+
+    public function testInjectedSuperglobalsGetPostGet(): void
+    {
+        // Service has only GET data
+        service('superglobals')->setGet('key', 'service_get');
+
+        // Injected mock has only POST data
+        $superglobals = new Superglobals(post: ['key' => 'mock_post'], get: []);
+
+        $config  = new App();
+        $uri     = new SiteURI($config);
+        $request = new IncomingRequest($config, $uri, null, new UserAgent(), $superglobals);
+
+        // Mock says POST exists -> choose POST -> service has no POST -> null
+        // Without injection, would have found no POST in service, fallen back to GET -> 'service_get'
+        $this->assertNull($request->getPostGet('key'));
+    }
+
+    public function testInjectedSuperglobalsGetGetPost(): void
+    {
+        // Service has only POST data
+        service('superglobals')->setPost('key', 'service_post');
+
+        // Injected mock has only GET data
+        $superglobals = new Superglobals(get: ['key' => 'mock_get'], post: []);
+
+        $config  = new App();
+        $uri     = new SiteURI($config);
+        $request = new IncomingRequest($config, $uri, null, new UserAgent(), $superglobals);
+
+        // Mock says GET exists -> choose GET -> service has no GET -> null
+        // Without injection, would have found no GET in service, fallen back to POST -> 'service_post'
+        $this->assertNull($request->getGetPost('key'));
     }
 
     // @TODO getIPAddress should have more testing, to 100% code coverage

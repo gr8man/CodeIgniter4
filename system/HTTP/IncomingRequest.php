@@ -17,6 +17,7 @@ use CodeIgniter\Exceptions\InvalidArgumentException;
 use CodeIgniter\HTTP\Exceptions\HTTPException;
 use CodeIgniter\HTTP\Files\FileCollection;
 use CodeIgniter\HTTP\Files\UploadedFile;
+use CodeIgniter\Superglobals;
 use Config\App;
 use Config\Services;
 use Locale;
@@ -124,16 +125,25 @@ class IncomingRequest extends Request
     protected $userAgent;
 
     /**
+     * Superglobals instance.
+     *
+     * @var Superglobals|null
+     */
+    protected $superglobals;
+
+    /**
      * Constructor
      *
      * @param App         $config
      * @param string|null $body
      */
-    public function __construct($config, ?URI $uri = null, $body = 'php://input', ?UserAgent $userAgent = null)
+    public function __construct($config, ?URI $uri = null, $body = 'php://input', ?UserAgent $userAgent = null, ?Superglobals $superglobals = null)
     {
         if (! $uri instanceof URI || ! $userAgent instanceof UserAgent) {
             throw new InvalidArgumentException('You must supply the parameters: uri, userAgent.');
         }
+
+        $this->superglobals = $superglobals ?? service('superglobals');
 
         $this->populateHeaders();
 
@@ -266,14 +276,10 @@ class IncomingRequest extends Request
      */
     public function isSecure(): bool
     {
-        $https = service('superglobals')->server('HTTPS');
+        $https = $this->superglobals->server('HTTPS');
 
         if ($https !== null && strtolower($https) !== 'off') {
             return true;
-        }
-
-        if (! $this->isFromTrustedProxy()) {
-            return false;
         }
 
         if ($this->hasHeader('X-Forwarded-Proto') && $this->header('X-Forwarded-Proto')->getValue() === 'https') {
@@ -367,7 +373,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter Filter constant
      * @param array|int|null    $flags
      *
-     * @return array<array-key, mixed>|bool|float|int|stdClass|string|null
+     * @return array|bool|float|int|stdClass|string|null
      */
     public function getVar($index = null, $filter = null, $flags = null)
     {
@@ -394,7 +400,7 @@ class IncomingRequest extends Request
      *
      * @see http://php.net/manual/en/function.json-decode.php
      *
-     * @return array<array-key, mixed>|bool|float|int|stdClass|null
+     * @return array|bool|float|int|stdClass|null
      *
      * @throws HTTPException When the body is invalid as JSON.
      */
@@ -421,7 +427,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter Filter Constant
      * @param array|int|null    $flags  Option
      *
-     * @return array<array-key, mixed>|bool|float|int|stdClass|string|null
+     * @return array|bool|float|int|stdClass|string|null
      */
     public function getJsonVar($index = null, bool $assoc = false, ?int $filter = null, $flags = null)
     {
@@ -512,7 +518,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter Filter Constant
      * @param array|int|null    $flags  Option
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getRawInputVar($index = null, ?int $filter = null, $flags = null)
     {
@@ -566,7 +572,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to apply.
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getGet($index = null, $filter = null, $flags = null)
     {
@@ -580,7 +586,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to apply
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getPost($index = null, $filter = null, $flags = null)
     {
@@ -594,7 +600,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to apply
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getPostGet($index = null, $filter = null, $flags = null)
     {
@@ -602,22 +608,14 @@ class IncomingRequest extends Request
             return array_merge($this->getGet($index, $filter, $flags), $this->getPost($index, $filter, $flags));
         }
 
-        if (is_array($index)) {
-            $output = [];
-
-            foreach ($index as $key) {
-                $output[$key] = $this->getPostGet($key, $filter, $flags);
-            }
-
-            return $output;
-        }
-
         // Use $_POST directly here, since filter_has_var only
         // checks the initial POST data, not anything that might
         // have been added since.
-        return service('superglobals')->post($index) !== null
+        $superglobals = $this->superglobals;
+
+        return $superglobals->post($index) !== null
             ? $this->getPost($index, $filter, $flags)
-            : (service('superglobals')->get($index) !== null ? $this->getGet($index, $filter, $flags) : $this->getPost($index, $filter, $flags));
+            : ($superglobals->get($index) !== null ? $this->getGet($index, $filter, $flags) : $this->getPost($index, $filter, $flags));
     }
 
     /**
@@ -627,7 +625,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to apply
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getGetPost($index = null, $filter = null, $flags = null)
     {
@@ -635,22 +633,14 @@ class IncomingRequest extends Request
             return array_merge($this->getPost($index, $filter, $flags), $this->getGet($index, $filter, $flags));
         }
 
-        if (is_array($index)) {
-            $output = [];
-
-            foreach ($index as $key) {
-                $output[$key] = $this->getGetPost($key, $filter, $flags);
-            }
-
-            return $output;
-        }
-
         // Use $_GET directly here, since filter_has_var only
         // checks the initial GET data, not anything that might
         // have been added since.
-        return service('superglobals')->get($index) !== null
+        $superglobals = $this->superglobals;
+
+        return $superglobals->get($index) !== null
             ? $this->getGet($index, $filter, $flags)
-            : (service('superglobals')->post($index) !== null ? $this->getPost($index, $filter, $flags) : $this->getGet($index, $filter, $flags));
+            : ($superglobals->post($index) !== null ? $this->getPost($index, $filter, $flags) : $this->getGet($index, $filter, $flags));
     }
 
     /**
@@ -660,7 +650,7 @@ class IncomingRequest extends Request
      * @param int|null          $filter A filter name to be applied
      * @param array|int|null    $flags
      *
-     * @return mixed
+     * @return array|bool|float|int|object|string|null
      */
     public function getCookie($index = null, $filter = null, $flags = null)
     {

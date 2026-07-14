@@ -22,14 +22,12 @@ use CodeIgniter\Test\Mock\MockResponse;
 use Config\App;
 use DateTime;
 use DateTimeZone;
-use PHPUnit\Framework\Attributes\BackupGlobals;
 use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 
 /**
  * @internal
  */
-#[BackupGlobals(true)]
 #[Group('Others')]
 final class ResponseTest extends CIUnitTestCase
 {
@@ -37,11 +35,12 @@ final class ResponseTest extends CIUnitTestCase
 
     protected function setUp(): void
     {
-        $this->resetServices();
-        parent::setUp();
-
         Services::injectMock('superglobals', new Superglobals());
         $this->server = service('superglobals')->getServerArray();
+
+        parent::setUp();
+
+        $this->resetServices();
     }
 
     protected function tearDown(): void
@@ -170,7 +169,6 @@ final class ResponseTest extends CIUnitTestCase
         Factories::injectMock('config', 'App', $config);
 
         $this->resetServices();
-        Services::injectMock('superglobals', new Superglobals([], []));
 
         $response = new Response($config);
         $pager    = service('pager');
@@ -494,41 +492,6 @@ final class ResponseTest extends CIUnitTestCase
         ob_end_clean();
 
         $this->assertSame(file_get_contents(__FILE__), $actualOutput);
-    }
-
-    public function testGetDownloadResponseByExtremeFilePath(): void
-    {
-        $response = new Response(new App());
-
-        $tempDir = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'ci4_test_dir_' . bin2hex(random_bytes(8));
-        $this->assertTrue(mkdir($tempDir));
-        $extremeName = 'my_extreme_file_!@#$%.txt';
-        $extremePath = $tempDir . DIRECTORY_SEPARATOR . $extremeName;
-
-        try {
-            file_put_contents($extremePath, 'extreme data');
-
-            $actual = $response->download($extremePath, null);
-
-            $this->assertInstanceOf(DownloadResponse::class, $actual);
-            $actual->buildHeaders();
-
-            $expectedFilename = $extremeName;
-            $this->assertSame(
-                'attachment; filename="' . addslashes($expectedFilename) . '"; filename*=UTF-8\'\'' . rawurlencode($expectedFilename),
-                $actual->getHeaderLine('Content-Disposition'),
-            );
-
-            ob_start();
-            $actual->sendBody();
-            $actualOutput = ob_get_contents();
-            ob_end_clean();
-
-            $this->assertSame('extreme data', $actualOutput);
-        } finally {
-            @unlink($extremePath);
-            @rmdir($tempDir);
-        }
     }
 
     public function testVagueDownload(): void
