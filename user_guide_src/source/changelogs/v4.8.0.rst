@@ -385,6 +385,7 @@ Changes
 *******
 
 - **Config:** Added the ``md`` key for ``Config\Mimes::$mimes`` for Markdown files.
+- **Router:** Removed inappropriate ``esc(strip_tags())`` input transformations on controller and method identifiers in ``RouteCollection``.
 
 ************
 Deprecations

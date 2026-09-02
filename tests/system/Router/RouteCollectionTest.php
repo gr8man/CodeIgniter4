@@ -272,12 +272,36 @@ final class RouteCollectionTest extends CIUnitTestCase
         $this->assertSame('godzilla', $routes->getDefaultController());
     }
 
+    public function testSetDefaultControllerPreservesSpecialCharacters(): void
+    {
+        $routes = $this->getCollector();
+        $routes->setDefaultController('Foo&Bar');
+
+        $this->assertSame('Foo&Bar', $routes->getDefaultController());
+    }
+
     public function testSetDefaultMethodStoresIt(): void
     {
         $routes = $this->getCollector();
         $routes->setDefaultMethod('biggerBox');
 
         $this->assertSame('biggerBox', $routes->getDefaultMethod());
+    }
+
+    public function testSetDefaultMethodPreservesSpecialCharacters(): void
+    {
+        $routes = $this->getCollector();
+        $routes->setDefaultMethod('get&set');
+
+        $this->assertSame('get&set', $routes->getDefaultMethod());
+    }
+
+    public function testSetDefaultNamespacePreservesSpecialCharacters(): void
+    {
+        $routes = $this->getCollector();
+        $routes->setDefaultNamespace('App\Controllers&Services');
+
+        $this->assertSame('App\Controllers&Services\\', $routes->getDefaultNamespace());
     }
 
     public function testTranslateURIDashesWorks(): void
@@ -732,13 +756,32 @@ final class RouteCollectionTest extends CIUnitTestCase
         service('request')->setMethod(Method::GET);
         $routes = $this->getCollector();
 
-        $routes->resource('photos', ['controller' => '<script>gallery']);
+        $routes->resource('photos', ['controller' => 'gallery']);
 
         $expected = [
             'photos'           => '\Gallery::index',
             'photos/new'       => '\Gallery::new',
             'photos/(.*)/edit' => '\Gallery::edit/$1',
             'photos/(.*)'      => '\Gallery::show/$1',
+        ];
+
+        $this->assertSame($expected, $routes->getRoutes());
+    }
+
+    public function testPresenterWithCustomController(): void
+    {
+        service('request')->setMethod(Method::GET);
+        $routes = $this->getCollector();
+
+        $routes->presenter('photos', ['controller' => 'gallery']);
+
+        $expected = [
+            'photos'             => '\Gallery::index',
+            'photos/show/(.*)'   => '\Gallery::show/$1',
+            'photos/new'         => '\Gallery::new',
+            'photos/edit/(.*)'   => '\Gallery::edit/$1',
+            'photos/remove/(.*)' => '\Gallery::remove/$1',
+            'photos/(.*)'        => '\Gallery::show/$1',
         ];
 
         $this->assertSame($expected, $routes->getRoutes());
