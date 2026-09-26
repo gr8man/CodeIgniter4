@@ -151,7 +151,7 @@ jobs:
       memcached-session:
         image: memcached:1.6-alpine
         ports:
-          - 11212:11212
+          - 11212:11211
 
     steps:
       - name: Install mssql-tools on runner
