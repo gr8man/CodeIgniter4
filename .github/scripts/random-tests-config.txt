@@ -41,7 +41,7 @@ Publisher
 RESTful
 # Router
 Security
-# Session
+Session
 Test
 Throttle
 Typography

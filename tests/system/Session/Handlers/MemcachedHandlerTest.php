@@ -18,6 +18,7 @@ use CodeIgniter\Test\CIUnitTestCase;
 use CodeIgniter\Test\TestLogger;
 use Config\Logger as LoggerConfig;
 use Config\Session as SessionConfig;
+use Memcached;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 
@@ -60,11 +61,28 @@ final class MemcachedHandlerTest extends CIUnitTestCase
         return $handler;
     }
 
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        if (extension_loaded('memcached')) {
+            $memcached = new Memcached();
+            $memcached->addServer('127.0.0.1', 11211);
+            $memcached->flush();
+        }
+    }
+
     protected function tearDown(): void
     {
         parent::tearDown();
 
         MemcachedHandler::resetPersistentConnections();
+
+        if (extension_loaded('memcached')) {
+            $memcached = new Memcached();
+            $memcached->addServer('127.0.0.1', 11211);
+            $memcached->flush();
+        }
     }
 
     public function testConstructorThrowsWithEmptySavePath(): void
@@ -110,6 +128,7 @@ final class MemcachedHandlerTest extends CIUnitTestCase
 
         $this->assertSame($data, $handler2->read($sessionId));
 
+        $handler2->destroy($sessionId);
         $handler2->close();
     }
 

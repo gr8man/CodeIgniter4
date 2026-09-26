@@ -22,6 +22,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use Redis;
+use Throwable;
 
 /**
  * @internal
@@ -67,6 +68,20 @@ final class RedisHandlerTest extends CIUnitTestCase
         parent::tearDown();
 
         RedisHandler::resetPersistentConnections();
+
+        if (extension_loaded('redis')) {
+            try {
+                $redis = new Redis();
+                if ($redis->connect('127.0.0.1', 6379, 1.0)) {
+                    $keys = $redis->keys('ci_session:*');
+                    if ($keys !== false && $keys !== []) {
+                        $redis->del($keys);
+                    }
+                    $redis->close();
+                }
+            } catch (Throwable) {
+            }
+        }
     }
 
     public function testOpen(): void
@@ -110,6 +125,8 @@ final class RedisHandlerTest extends CIUnitTestCase
         $expected = <<<'DATA'
             __ci_last_regenerate|i:1664607454;_ci_previous_url|s:32:"http://localhost:8080/index.php/";key|s:5:"value";
             DATA;
+        $handler->write('555556b43phsnnf8if6bo33b635e4447', $expected);
+
         $this->assertSame($expected, $handler->read('555556b43phsnnf8if6bo33b635e4447'));
 
         $handler->close();
@@ -142,6 +159,8 @@ final class RedisHandlerTest extends CIUnitTestCase
         $expected = <<<'DATA'
             __ci_last_regenerate|i:1664607454;_ci_previous_url|s:32:"http://localhost:8080/index.php/";key|s:5:"value";
             DATA;
+        $handler->write('555556b43phsnnf8if6bo33b635e4447', $expected);
+
         $data = $handler->read('555556b43phsnnf8if6bo33b635e4447');
         $this->assertSame($expected, $data);
 
