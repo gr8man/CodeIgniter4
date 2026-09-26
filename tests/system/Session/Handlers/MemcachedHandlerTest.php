@@ -30,7 +30,7 @@ final class MemcachedHandlerTest extends CIUnitTestCase
 {
     private string $sessionDriver   = MemcachedHandler::class;
     private string $sessionName     = 'ci_session';
-    private string $sessionSavePath = '127.0.0.1:11211';
+    private string $sessionSavePath = '127.0.0.1:11212';
     private string $userIpAddress   = '127.0.0.1';
 
     /**
@@ -76,7 +76,7 @@ final class MemcachedHandlerTest extends CIUnitTestCase
 
     public function testConstructorDoesNotThrowWithValidSavePath(): void
     {
-        $handler = $this->getInstance(['savePath' => '127.0.0.1:11211']);
+        $handler = $this->getInstance(['savePath' => '127.0.0.1:11212']);
 
         $this->assertInstanceOf(MemcachedHandler::class, $handler);
     }

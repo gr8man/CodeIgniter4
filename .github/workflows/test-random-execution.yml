@@ -148,6 +148,11 @@ jobs:
         ports:
           - 11211:11211
 
+      memcached-session:
+        image: memcached:1.6-alpine
+        ports:
+          - 11212:11212
+
     steps:
       - name: Install mssql-tools on runner
         if: ${{ matrix.db-platform == 'SQLSRV' }}
