@@ -915,12 +915,24 @@ main() {
         fi
 
         for next_component in "${components_array[@]}"; do
+            if [[ "$next_component" == "Session" ]]; then
+                continue
+            fi
             spawn_limited_job "$next_component"
         done
 
         for finished_pid in "${bg_pids[@]:-}"; do
             wait "$finished_pid" 2>/dev/null || true
         done
+        bg_pids=()
+
+        if printf '%s\n' "${components_array[@]}" | grep -qx "Session"; then
+            spawn_limited_job "Session"
+            for finished_pid in "${bg_pids[@]:-}"; do
+                wait "$finished_pid" 2>/dev/null || true
+            done
+            bg_pids=()
+        fi
 
         if should_show_spinner; then
             stop_spinner
