@@ -19,9 +19,11 @@ use CodeIgniter\Test\TestLogger;
 use Config\Logger as LoggerConfig;
 use Config\Session as SessionConfig;
 use PHPUnit\Framework\Attributes\DataProvider;
+use PHPUnit\Framework\Attributes\Depends;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
 use Redis;
+use Throwable;
 
 /**
  * @internal
@@ -69,6 +71,25 @@ final class RedisHandlerTest extends CIUnitTestCase
         RedisHandler::resetPersistentConnections();
     }
 
+    public static function tearDownAfterClass(): void
+    {
+        parent::tearDownAfterClass();
+
+        if (extension_loaded('redis')) {
+            try {
+                $redis = new Redis();
+                if ($redis->connect('127.0.0.1', 6379, 1.0)) {
+                    $keys = $redis->keys('ci_session:*');
+                    if ($keys !== false && $keys !== []) {
+                        $redis->del($keys);
+                    }
+                    $redis->close();
+                }
+            } catch (Throwable) {
+            }
+        }
+    }
+
     public function testOpen(): void
     {
         $handler = $this->getInstance();
@@ -102,6 +123,7 @@ final class RedisHandlerTest extends CIUnitTestCase
         $handler->close();
     }
 
+    #[Depends('testWrite')]
     public function testReadSuccess(): void
     {
         $handler = $this->getInstance();
@@ -134,6 +156,7 @@ final class RedisHandlerTest extends CIUnitTestCase
     /**
      * See https://github.com/codeigniter4/CodeIgniter4/issues/7695
      */
+    #[Depends('testWrite')]
     public function testSecondaryReadAfterClose(): void
     {
         $handler = $this->getInstance();
