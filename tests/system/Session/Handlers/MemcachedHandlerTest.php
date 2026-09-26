@@ -65,9 +65,14 @@ final class MemcachedHandlerTest extends CIUnitTestCase
     {
         parent::setUp();
 
+        if ($envSavePath = getenv('MEMCACHED_SESSION_SAVE_PATH')) {
+            $this->sessionSavePath = $envSavePath;
+        }
+
         if (extension_loaded('memcached')) {
-            $memcached = new Memcached();
-            $memcached->addServer('127.0.0.1', 11211);
+            $memcached     = new Memcached();
+            [$host, $port] = explode(':', $this->sessionSavePath);
+            $memcached->addServer($host, (int) $port);
             $memcached->flush();
         }
     }
@@ -79,8 +84,9 @@ final class MemcachedHandlerTest extends CIUnitTestCase
         MemcachedHandler::resetPersistentConnections();
 
         if (extension_loaded('memcached')) {
-            $memcached = new Memcached();
-            $memcached->addServer('127.0.0.1', 11211);
+            $memcached     = new Memcached();
+            [$host, $port] = explode(':', $this->sessionSavePath);
+            $memcached->addServer($host, (int) $port);
             $memcached->flush();
         }
     }
@@ -94,7 +100,7 @@ final class MemcachedHandlerTest extends CIUnitTestCase
 
     public function testConstructorDoesNotThrowWithValidSavePath(): void
     {
-        $handler = $this->getInstance(['savePath' => '127.0.0.1:11211']);
+        $handler = $this->getInstance(['savePath' => $this->sessionSavePath]);
 
         $this->assertInstanceOf(MemcachedHandler::class, $handler);
     }

@@ -33,7 +33,7 @@ final class RedisHandlerTest extends CIUnitTestCase
 {
     private string $sessionDriver   = RedisHandler::class;
     private string $sessionName     = 'ci_session';
-    private string $sessionSavePath = 'tcp://127.0.0.1:6379';
+    private string $sessionSavePath = 'tcp://127.0.0.1:6379?database=1';
     private string $userIpAddress   = '127.0.0.1';
 
     /**
@@ -73,9 +73,12 @@ final class RedisHandlerTest extends CIUnitTestCase
             try {
                 $redis = new Redis();
                 if ($redis->connect('127.0.0.1', 6379, 1.0)) {
-                    $keys = $redis->keys('ci_session:*');
-                    if ($keys !== false && $keys !== []) {
-                        $redis->del($keys);
+                    foreach ([0, 1] as $db) {
+                        $redis->select($db);
+                        $keys = $redis->keys('ci_session:*');
+                        if ($keys !== false && $keys !== []) {
+                            $redis->del($keys);
+                        }
                     }
                     $redis->close();
                 }

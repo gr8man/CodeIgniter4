@@ -148,6 +148,11 @@ jobs:
         ports:
           - 11211:11211
 
+      memcached2:
+        image: memcached:1.6-alpine
+        ports:
+          - 11212:11211
+
     steps:
       - name: Install mssql-tools on runner
         if: ${{ matrix.db-platform == 'SQLSRV' }}
@@ -227,6 +232,7 @@ jobs:
         env:
           DB: ${{ matrix.db-platform }}
           TERM: xterm-256color
+          MEMCACHED_SESSION_SAVE_PATH: '127.0.0.1:11212'
 
       - name: Upload random-test artifacts on failure
         if: ${{ always() && failure() }}
