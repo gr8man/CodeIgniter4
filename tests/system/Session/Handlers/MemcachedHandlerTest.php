@@ -20,6 +20,8 @@ use Config\Logger as LoggerConfig;
 use Config\Session as SessionConfig;
 use PHPUnit\Framework\Attributes\Group;
 use PHPUnit\Framework\Attributes\RequiresPhpExtension;
+use Memcached;
+use Throwable;
 
 /**
  * @internal
@@ -65,6 +67,26 @@ final class MemcachedHandlerTest extends CIUnitTestCase
         parent::tearDown();
 
         MemcachedHandler::resetPersistentConnections();
+    }
+
+    public static function tearDownAfterClass(): void
+    {
+        parent::tearDownAfterClass();
+
+        if (extension_loaded('memcached')) {
+            try {
+                $memcached = new Memcached();
+                $memcached->addServer('127.0.0.1', 11212);
+                $memcached->deleteMulti([
+                    'ci_session:ci_session:555556b43phsnnf8if6bo33b635e4447',
+                    'ci_session:ci_session:555556b43phsnnf8if6bo33b635e4447:lock',
+                    'ci_session:ci_session:123456b43phsnnf8if6bo33b635e4321',
+                    'ci_session:ci_session:123456b43phsnnf8if6bo33b635e4321:lock',
+                ]);
+                $memcached->quit();
+            } catch (Throwable) {
+            }
+        }
     }
 
     public function testConstructorThrowsWithEmptySavePath(): void
